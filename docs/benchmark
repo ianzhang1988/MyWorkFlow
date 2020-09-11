@@ -1,0 +1,152 @@
+use rust reqwest test fastapi and sqlalchemy
+
+my laptop: i5-7200U 16G
+
+fast api at 127.0.0.1:12345, mysql on a server (Intel(R) Xeon(R) CPU E5-2620 v3 @ 2.40GHz, 64G, Red Hat Enterprise Linux Server release 7.4 (Maipo))
+
+# uvicorn 1 worker, database client in sync mode
+
+    ----------add 1000 thread 1
+    all time 11.639s, avg 11.63943ms
+    min time 7.60140ms, max time 79.30870ms
+    error: 0
+    ----------add 10000 thread 10
+    all time 86.859s, avg 8.68587ms
+    min time 17.84770ms, max time 333.69640ms
+    error: 0
+    ----------add 50000 thread 100
+    all time 453.710s, avg 9.07421ms
+    min time 29.97860ms, max time 2.44413s
+    error: 0
+    ----------get 1000 thread 1
+    all time 4.723s, avg 4.72292ms
+    min time 3.58500ms, max time 15.27430ms
+    error: 0
+    ----------get 10000 thread 10
+    all time 40.088s, avg 4.00884ms
+    min time 12.97190ms, max time 193.09480ms
+    error: 0
+    ----------get 50000 thread 100
+    all time 208.911s, avg 4.17822ms
+    min time 11.60760ms, max time 1.13501s
+    error: 0
+
+no default async behavior in fast api and uvicorn, just one thread for all request
+
+# uvicorn 1 worker, database client in async mode
+
+    ----------add 1000 thread 1
+    all time 8.987s, avg 8.98708ms
+    min time 6.44560ms, max time 31.12570ms
+    error: 0
+    ----------add 10000 thread 10
+    all time 58.377s, avg 5.83766ms
+    min time 31.53660ms, max time 373.48250ms
+    error: 0
+    ----------add 50000 thread 100
+    all time 307.991s, avg 6.15981ms
+    min time 35.96960ms, max time 11.82129s
+    error: 0
+    ----------get 1000 thread 1
+    all time 4.585s, avg 4.58474ms
+    min time 3.22770ms, max time 34.00770ms
+    error: 0
+    ----------get 10000 thread 10
+    all time 22.194s, avg 2.21940ms
+    min time 9.22870ms, max time 45.93630ms
+    error: 0
+    ----------get 50000 thread 100
+    all time 126.485s, avg 2.52971ms
+    min time 14.82010ms, max time 4.65476s
+    error: 0
+
+in async mode, time is less than sync mode, but not much
+
+multiple worker not working on windows, put server on a linux.
+# uvicorn 10 worker, database client in sync mode
+
+    ----------add 1000 thread 1
+    all time 6.298s, avg 6.29781ms
+    min time 4.78990ms, max time 26.06950ms
+    error: 0
+    ----------add 10000 thread 10
+    all time 8.495s, avg 849.46600µs
+    min time 4.86610ms, max time 58.13810ms
+    error: 0
+    ----------add 50000 thread 100
+    all time 43.242s, avg 864.83700µs
+    min time 5.15300ms, max time 233.37690ms
+    error: 0
+    ----------get 1000 thread 1
+    all time 3.160s, avg 3.15998ms
+    min time 2.27250ms, max time 18.16870ms
+    error: 0
+    ----------get 10000 thread 10
+    all time 4.138s, avg 413.84800µs
+    min time 2.37830ms, max time 24.06760ms
+    error: 0
+    ----------get 50000 thread 100
+    all time 18.560s, avg 371.20000µs
+    min time 2.63020ms, max time 641.12100ms
+    error: 0
+
+at 10 thread it is much faster, at 100 not improved, only 10 worker after all, and my laptop cpu is at 100% at 10 thread
+
+# uvicorn 20 worker, database client in sync mode
+    ----------add 1000 thread 1
+    all time 6.361s, avg 6.36139ms
+    min time 4.72350ms, max time 28.57350ms
+    error: 0
+    ----------add 10000 thread 10
+    all time 9.196s, avg 919.57700µs
+    min time 4.76280ms, max time 33.22000ms
+    error: 0
+    ----------add 50000 thread 100
+    all time 40.598s, avg 811.95100µs
+    min time 5.08840ms, max time 116.71580ms
+    error: 0
+    ----------get 1000 thread 1
+    all time 3.106s, avg 3.10578ms
+    min time 2.27660ms, max time 11.65000ms
+    error: 0
+    ----------get 10000 thread 10
+    all time 4.248s, avg 424.82900µs
+    min time 2.38990ms, max time 23.77090ms
+    error: 0
+    ----------get 50000 thread 100
+    all time 18.246s, avg 364.91100µs
+    min time 2.57220ms, max time 567.41100ms
+    error: 0
+my laptop can't test further than 10 thread
+
+# uvicorn 10 worker, database client in async mode
+    have some difficulty running database
+
+# without database
+
+    ----------add 1000 thread 1
+    all time 4.651s, avg 4.65079ms
+    min time 2.97220ms, max time 36.27410ms
+    error: 0
+    ----------add 10000 thread 10
+    all time 8.269s, avg 826.87500µs
+    min time 3.25310ms, max time 28.84700ms
+    error: 0
+    ----------add 50000 thread 100
+    all time 43.773s, avg 875.45400µs
+    min time 3.25150ms, max time 227.43580ms
+    error: 0
+    ----------get 1000 thread 1
+    all time 2.313s, avg 2.31346ms
+    min time 1.41850ms, max time 15.17170ms
+    error: 0
+    ----------get 10000 thread 10
+    all time 3.466s, avg 346.59200µs
+    min time 1.49080ms, max time 35.71140ms
+    error: 0
+    ----------get 50000 thread 100
+    all time 16.278s, avg 325.56100µs
+    min time 1.58230ms, max time 1.18054s
+    error: 0
+
+    1000rps, can be achieved there are none "payload"
