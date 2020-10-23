@@ -9,6 +9,7 @@ class Flow:
         self.node_id_generator = 0
 
         self.name = ""
+        self.job_id = ""
         # self.description = ""
 
     def add_node(self, node):
@@ -20,15 +21,7 @@ class Flow:
     def connect_node(self, src, dst):
         self.nodes[src].connect(self.nodes[dst])
 
-    def save(self):
-        # save flow to database
-        keys = sorted(list(self.nodes.keys()))
 
-        # transaction
-
-        for k in keys:
-
-            self.nodes
 
     def node_work(self, node_id):
         self.nodes[node_id].work()
