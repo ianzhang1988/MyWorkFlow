@@ -18,3 +18,7 @@ class NodeType(Enum):
     Inter = 2
     End   = 3
 
+class EventType:
+    NODE="node"
+    TASK="task"
+

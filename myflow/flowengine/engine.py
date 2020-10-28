@@ -12,7 +12,7 @@ class Engine:
     def __init__(self, database_facade):
         self.database_facade = database_facade
 
-        self.flow = {} # name: flow obj
+        self.flow_config = {} # name: flow obj
 
         self.process_routine = {
             'node': self._process_node,
@@ -20,16 +20,16 @@ class Engine:
         }
 
     def register_flow(self,name, flow):
-        self.flow[name] = flow
+        self.flow_config[name] = flow
 
     def _process_node(self, event):
-        flow_name = event['flow_name']
-        flow = self.flow[flow_name]
+        # flow_name = event['flow_name']
+        # flow_config = self.flow_config[flow_name]
 
-        node_num = event['node_num']
-        node = self.database_facade.node_state_from_database(flow, node_num)
+        node_id = event['node_id']
+        node = self.database_facade.node_state_from_database(node_id)
 
-        # check node state
+        # check node state， todo: maybe put this inside database_facade
         ready = True
         for n in node.input_nodes:
             if n.state != State.SUCCESS:
@@ -39,7 +39,7 @@ class Engine:
         if not ready:
             return None
 
-        node = self.database_facade.node_from_database(flow, node_num)
+        # node = self.database_facade.node_from_database(node_id)
         data = node.work()
 
         self.database_facade.update_node_database(node)
@@ -57,7 +57,7 @@ class Engine:
     def one_step(self, node_event):
         # get node from database
         event_type = node_event['type']
-        node_id = node_event['id']
+        node_id = node_event['node_id']
 
         func = self.process_routine[event_type]
         func(node_event)

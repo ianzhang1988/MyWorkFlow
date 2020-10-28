@@ -7,6 +7,10 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
 from myflow.globalvar import db_session_maker, db_engine
+from datetime import datetime
+
+from myflow.flowengine.flow import FlowConfigration, Flow as FlowMem
+from myflow.flowengine.node import Node as NodeMem
 
 Base = declarative_base()
 
@@ -38,18 +42,42 @@ class Flow(Base):
         return "id:{} name:{} state:{} work_data:{} :create_date{}".format(self.id,self.name, self.state, self.work_data, self.create_date)
 
 class FlowDao:
-    def __init__(self, flow):
+    def __init__(self, flow:FlowConfigration, session_maker):
         self.flow = flow
+        self.session_maker = session_maker
 
     def create(self):
         # save flow to database
-        keys = sorted(list(self.flow.nodes.keys()))
+        key_nums = sorted(list(self.flow.nodes.keys()))
 
         # transaction
 
-        for k in keys:
+        session = self.session_maker()
 
-            self.nodes
+        flow = Flow(name=self.flow.name,
+                     input_data=self.flow.input_data,
+                     create_date=datetime.now(),
+                     state=self.flow.state)
+
+        session.add(flow)
+
+        for n in key_nums:
+
+            _node = self.flow.nodes[n]
+
+            node = Node(node_num=_node.node_num,
+                        input_nodes= _node.input_node_string(),
+                        output_nodes= _node.output_node_string(),
+                        state = _node.state,
+                        create_date = datetime.now())
+
+            flow.nodes.append(node)
+
+        session.commit()
+
+        start_node_id = flow.nodes[0].id
+
+        return flow.id, start_node_id
 
 class Node(Base):
     __tablename__ = "node"
@@ -69,7 +97,7 @@ class Node(Base):
     tasks = relationship("Task", backref="user")
 
     def __repr__(self):
-        return "id:{} node_id:{} flow_id:{} state:{} input_nodes:{} output_nodes:{}".format(
+        return "id:{} node_num:{} flow_id:{} state:{} input_nodes:{} output_nodes:{}".format(
             self.id,self.node_num, self.flow_id, self.state, self.input_nodes, self.output_nodes)
 
 class Task(Base):
@@ -88,11 +116,37 @@ class DatabaseFacade:
     def __init__(self):
         self.session = db_session_maker()
 
-    def node_state_from_database(self, flow, node_num):
-        pass
+    def node_state_from_database(self, node_id):
+        # let keep it simple for now
+        return self.node_from_database(node_id)
 
-    def node_from_database(self, flow, node_num):
-        pass
+
+    def node_from_database(self, node_id):
+
+        node = self.session.query(Node).filter_by(id=node_id).one()
+        print('------', node)
+
+        node_mem = NodeMem()
+        node_mem.state = node.state
+
+        input_nodes_num_str = node.input_nodes
+        input_node_num = []
+        if "," not in input_nodes_num_str:
+            input_node_num.append(input_nodes_num_str)
+        else:
+            input_node_num = input_nodes_num_str.split(",")
+
+        if input_node_num:
+            input_nodes = self.session.query(Node).filter(flow_id=node.flow_id).filter(Node.node_num.in_(input_node_num))
+            for n in input_nodes:
+                input_node_mem = NodeMem()
+                input_node_mem.work_data = n.work_data
+                input_node_mem.user_data = n.user_data
+
+                node_mem.input_nodes.append()
+
+
+        return node_mem
 
     def update_node_database(self, node):
         pass
@@ -119,25 +173,25 @@ if __name__=="__main__":
     flow = Flow(name="flow1", state=State.PENDING, work_data="test data", create_date=datetime.now())
     session.add(flow)
 
-    node = Node(node_id=1, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=1, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=2, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=2, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=3, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=3, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
 
     flow = Flow(name="flow2", state=State.PENDING, work_data="test data", create_date=datetime.now())
     session.add(flow)
 
-    node = Node(node_id=1, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=1, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=2, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=2, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=3, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=3, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_id=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
 
     session.commit()
