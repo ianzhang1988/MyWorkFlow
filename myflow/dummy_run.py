@@ -12,7 +12,9 @@ from myflow.flowengine.consts import EventType
 
 init_database()
 
-flow = dummy_flow.get_flow_configration()
+flow_config = dummy_flow.get_flow_configration()
+
+flow = flow_config.new()
 
 flow.set_input_data("test")
 flow_dao = FlowDao(flow, db_session_maker)
@@ -22,7 +24,7 @@ print('----- flow_id', flow_id,"start_node_id",start_node_id)
 
 # event
 event = {
-    "flow_name":"test",
+    "flow_name":"dummy",
     "type": EventType.NODE,
     "flow_id":flow_id,
     "node_id":start_node_id,
@@ -32,6 +34,7 @@ node_event_queue.put(event)
 
 db_facade = DatabaseFacade()
 engine = Engine(db_facade)
+engine.register_flow(flow_config.name, flow_config)
 
 for _ in range(100):
     if node_event_queue.empty():

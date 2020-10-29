@@ -4,7 +4,7 @@
 # @Email   : ian.zhang.88@outlook.com
 
 from myflow.globalvar import node_event_queue
-from myflow.flowengine.consts import State
+from myflow.flowengine.consts import State, EventType
 
 
 
@@ -23,11 +23,11 @@ class Engine:
         self.flow_config[name] = flow
 
     def _process_node(self, event):
-        # flow_name = event['flow_name']
-        # flow_config = self.flow_config[flow_name]
+        flow_name = event['flow_name']
+        flow_config = self.flow_config[flow_name]
 
         node_id = event['node_id']
-        node = self.database_facade.node_state_from_database(node_id)
+        node = self.database_facade.node_state_from_database(flow_config, node_id)
 
         # check node state， todo: maybe put this inside database_facade
         ready = True
@@ -42,10 +42,20 @@ class Engine:
         # node = self.database_facade.node_from_database(node_id)
         data = node.work()
 
+        node.state = State.SUCCESS
         self.database_facade.update_node_database(node)
 
-        # send envet to next node
-        node_event_queue.put()
+        for n in node.output_nodes:
+
+            event = {
+                "flow_name": flow_name,
+                "type": EventType.NODE,
+                "flow_id": n.flow_id,
+                "node_id": n.id,
+            }
+
+            # send envet to next node
+            node_event_queue.put(event)
 
 
     def _process_task(self, event):

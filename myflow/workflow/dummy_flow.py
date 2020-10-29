@@ -12,20 +12,25 @@ class First(Start):
         super().__init__()
 
     def work(self):
+        self.user_data="1st done"
         print("First")
 
 
 class Second(Node):
     def work(self):
+        self.user_data = "2nd done"
         print("Second")
 
 class Third(End):
     def work(self):
+        self.user_data = "3rd done"
         print("Third")
 
 def get_flow_configration():
 
     f = FlowConfigration()
+
+    f.name="dummy"
 
     f.add_node(First())  #1
     f.add_node(Second()) #2

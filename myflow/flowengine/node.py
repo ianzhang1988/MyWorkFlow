@@ -20,6 +20,9 @@ class Node:
         self.create_date = None
         self.finish_date = None
 
+        self.id = None
+        self.flow_id = None
+
     def set_node_num(self, id):
         self.node_num = id
 
@@ -35,6 +38,12 @@ class Node:
 
     def work(self):
         pass
+
+    @classmethod
+    def new(cls, node):
+        new_node = cls()
+        new_node.node_num = node.node_num
+        return new_node
 
 
 class Start(Node):

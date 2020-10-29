@@ -116,40 +116,54 @@ class DatabaseFacade:
     def __init__(self):
         self.session = db_session_maker()
 
-    def node_state_from_database(self, node_id):
+    def node_state_from_database(self, flow_config , node_id):
         # let keep it simple for now
-        return self.node_from_database(node_id)
+        return self.node_from_database(flow_config, node_id)
 
+    def _set_ioput_node(self, flow_config, nodes_num_str, node, node_mem_nodes):
+        node_num = []
+        if "," not in nodes_num_str:
+            node_num.append(nodes_num_str)
+        else:
+            node_num = nodes_num_str.split(",")
 
-    def node_from_database(self, node_id):
+        if node_num:
+            input_nodes = self.session.query(Node).filter(Node.flow_id==node.flow_id).filter(
+                Node.node_num.in_(node_num))
+            for n in input_nodes:
+                node_mem = flow_config.new_node(n.node_num)
+                node_mem.state = n.state
+                node_mem.id = n.id
+                node_mem.flow_id = n.flow_id
+                node_mem.work_data = n.work_data
+                node_mem.user_data = n.user_data
+
+                node_mem_nodes.append(node_mem)
+
+    def node_from_database(self, flow_config, node_id):
 
         node = self.session.query(Node).filter_by(id=node_id).one()
-        print('------', node)
+        print('------ dao.py node_from_database ', node)
 
-        node_mem = NodeMem()
+        node_mem = flow_config.new_node(node.node_num)
         node_mem.state = node.state
+        node_mem.id = node.id
+        node_mem.flow_id = node.flow_id
 
         input_nodes_num_str = node.input_nodes
-        input_node_num = []
-        if "," not in input_nodes_num_str:
-            input_node_num.append(input_nodes_num_str)
-        else:
-            input_node_num = input_nodes_num_str.split(",")
+        output_nodes_num_str = node.output_nodes
 
-        if input_node_num:
-            input_nodes = self.session.query(Node).filter(flow_id=node.flow_id).filter(Node.node_num.in_(input_node_num))
-            for n in input_nodes:
-                input_node_mem = NodeMem()
-                input_node_mem.work_data = n.work_data
-                input_node_mem.user_data = n.user_data
-
-                node_mem.input_nodes.append()
-
+        self._set_ioput_node(flow_config, input_nodes_num_str, node, node_mem.input_nodes)
+        self._set_ioput_node(flow_config, output_nodes_num_str, node, node_mem.output_nodes)
 
         return node_mem
 
     def update_node_database(self, node):
-        pass
+        node_db = self.session.query(Node).filter_by(id=node.id).one()
+        node_db.state = node.state
+        node_db.work_data = node.work_data
+        node_db.user_data = node.user_data
+        self.session.commit()
 
 def init_database():
     Base.metadata.create_all(db_engine)
