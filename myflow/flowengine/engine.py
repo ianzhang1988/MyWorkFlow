@@ -3,10 +3,10 @@
 # @Author  : ZhangYang
 # @Email   : ian.zhang.88@outlook.com
 
+import traceback
+
 from myflow.globalvar import node_event_queue
 from myflow.flowengine.consts import State, EventType
-
-
 
 class Engine:
     def __init__(self, database_facade):
@@ -57,6 +57,7 @@ class Engine:
             # send envet to next node
             node_event_queue.put(event)
 
+        self.database_facade.commit()
 
     def _process_task(self, event):
         pass
@@ -65,12 +66,13 @@ class Engine:
         pass
 
     def one_step(self, node_event):
-        # get node from database
-        event_type = node_event['type']
-        node_id = node_event['node_id']
+        try:
+            # get node from database
+            event_type = node_event['type']
+            node_id = node_event['node_id']
 
-        func = self.process_routine[event_type]
-        func(node_event)
+            func = self.process_routine[event_type]
+            func(node_event)
 
         # check event state and data base stated
 
@@ -79,6 +81,12 @@ class Engine:
 
 
         # if node type is end, save data and go next loop
+        except Exception as e:
+            self.database_facade.rollback()
+            traceback.print_exc()
+            return False
+
+        return True
 
 
 if __name__ == '__main__':

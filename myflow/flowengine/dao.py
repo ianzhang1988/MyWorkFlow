@@ -156,6 +156,8 @@ class DatabaseFacade:
         self._set_ioput_node(flow_config, input_nodes_num_str, node, node_mem.input_nodes)
         self._set_ioput_node(flow_config, output_nodes_num_str, node, node_mem.output_nodes)
 
+        # self.session.commit()
+
         return node_mem
 
     def update_node_database(self, node):
@@ -163,7 +165,15 @@ class DatabaseFacade:
         node_db.state = node.state
         node_db.work_data = node.work_data
         node_db.user_data = node.user_data
+        # self.session.commit()
+
+    def commit(self):
         self.session.commit()
+
+    def rollback(self):
+        self.session.rollback()
+
+
 
 def init_database():
     Base.metadata.create_all(db_engine)
