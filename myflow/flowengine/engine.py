@@ -4,13 +4,18 @@
 # @Email   : ian.zhang.88@outlook.com
 
 import traceback
+import threading
+from datetime import datetime
 
-from myflow.globalvar import node_event_queue
 from myflow.flowengine.consts import State, EventType
+from myflow.flowengine.dao import DatabaseFacade
+from myflow.flowengine.event_utlity import EventFacade
 
 class Engine:
-    def __init__(self, database_facade):
+    def __init__(self, database_facade : DatabaseFacade, event_facade: EventFacade):
         self.database_facade = database_facade
+        self.event_facade = event_facade
+        self.work_thread = None
 
         self.flow_config = {} # name: flow obj
 
@@ -43,6 +48,7 @@ class Engine:
         data = node.work()
 
         node.state = State.SUCCESS
+        node.finish_date = datetime.now()
         self.database_facade.update_node_database(node)
 
         for n in node.output_nodes:
@@ -55,7 +61,7 @@ class Engine:
             }
 
             # send envet to next node
-            node_event_queue.put(event)
+            self.event_facade.send_node_event(event)
 
         self.database_facade.commit()
 
@@ -88,6 +94,18 @@ class Engine:
 
         return True
 
+    def run(self, thread_local_callback):
+        self.work_thread = threading.Thread(target=self._run, args=(thread_local_callback,))
+        self.work_thread.start()
+
+    def stop(self):
+        self.event_facade.stop()
+        self.work_thread.join()
+
+    def _run(self, thread_local_callback):
+        thread_local_callback()
+        self.event_facade.get_node_event(self.one_step)
+
 
 if __name__ == '__main__':
 
@@ -100,10 +118,5 @@ if __name__ == '__main__':
 
     engine.create_flow({})
 
-    node_event_queue.put(None)
-
-    for _ in range(10):
-        event = node_event_queue.pop()
-        engine.one_step(event)
 
 

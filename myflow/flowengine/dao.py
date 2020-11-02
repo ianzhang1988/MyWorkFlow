@@ -114,6 +114,9 @@ class Task(Base):
 
 class DatabaseFacade:
     def __init__(self):
+        self.session = None
+
+    def init_session(self):
         self.session = db_session_maker()
 
     def node_state_from_database(self, flow_config , node_id):
@@ -165,6 +168,9 @@ class DatabaseFacade:
         node_db.state = node.state
         node_db.work_data = node.work_data
         node_db.user_data = node.user_data
+
+        if node.finish_date:
+            node_db.finish_date = node.finish_date
         # self.session.commit()
 
     def commit(self):
