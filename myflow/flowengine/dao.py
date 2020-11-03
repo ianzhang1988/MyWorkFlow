@@ -63,7 +63,7 @@ class FlowDao:
         session = self.session_maker()
 
         flow = Flow(name=self.flow.name,
-                     input_data=self.flow.input_data,
+                     input_data=to_string(self.flow.input_data),
                      create_date=datetime.now(),
                      state=self.flow.state)
 
@@ -146,8 +146,10 @@ class DatabaseFacade:
                 node_mem.state = n.state
                 node_mem.id = n.id
                 node_mem.flow_id = n.flow_id
-                node_mem.work_data = n.work_data
-                node_mem.user_data = n.user_data
+                if n.work_data:
+                    node_mem.work_data = json.loads(n.work_data)
+                if n.user_data:
+                    node_mem.user_data = json.loads(n.user_data)
 
                 node_mem_nodes.append(node_mem)
 
@@ -197,6 +199,10 @@ class DatabaseFacade:
             update[Flow.user_data] = to_string(flow.user_data)
 
         self.session.query(Flow).filter_by(id=flow.id).update(update)
+
+    def get_input_data(self, flow_id):
+        input_data = self.session.query(Flow.input_data).filter_by(id=flow_id).one()[0]
+        return json.loads(input_data)
 
     def check_if_flow_state_valid(self, flow_id):
         flow_db = self.session.query(Flow).filter_by(id=flow_id).one()

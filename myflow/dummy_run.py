@@ -18,8 +18,8 @@ init_database()
 flow_config = dummy_flow.get_flow_configration()
 
 flow = flow_config.new()
-
-flow.set_input_data("test")
+input = {"value":0}
+flow.set_input_data(input)
 flow_dao = FlowDao(flow, db_session_maker)
 flow_id, start_node_id = flow_dao.create()
 

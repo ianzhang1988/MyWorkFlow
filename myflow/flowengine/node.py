@@ -7,10 +7,13 @@ from myflow.flowengine.consts import State
 
 class Node:
     def __init__(self):
+        self.node_num = None
+        self.node_name = None
+
         self.input_nodes = []
         self.output_nodes = []
 
-        self.node_num = None
+        self.input_name2node = {}
 
         self.work_data = None
         self.user_data = None
@@ -36,7 +39,13 @@ class Node:
     def output_node_string(self):
         return ",".join(map(lambda x : str(x.node_num), self.output_nodes))
 
+    def _get_node_data(self, name):
+        return self.input_name2node[name].work_data
+
     def _work(self):
+
+        for n in self.input_nodes:
+            self.input_name2node[n.name] = n
 
         data = self.work()
 
@@ -48,12 +57,22 @@ class Node:
     @classmethod
     def new(cls, node):
         new_node = cls()
+        new_node.name = cls.__name__
         new_node.node_num = node.node_num
+
         return new_node
 
 
 class Start(Node):
-    pass
+    def __init__(self):
+        super().__init__()
+        self.input_data = None
+
+    def set_input_data(self, data):
+        self.input_data = data
+
+    def _get_input_data(self):
+        return self.input_data
 
 class End(Node):
     pass

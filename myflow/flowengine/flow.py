@@ -11,11 +11,11 @@ class Flow:
         self.name = ""
         self.job_id = ""
         # self.description = ""
-        self.input_data=None
+        self.input_data= {}
         self.state = State.PENDING
 
-        self.work_data = None
-        self.user_data = None
+        self.work_data = {}
+        self.user_data = {}
 
         self.create_date = None
         self.finish_date = None

@@ -10,6 +10,7 @@ from datetime import datetime
 from myflow.flowengine.consts import State, EventType, FlowError
 from myflow.flowengine.dao import DatabaseFacade
 from myflow.flowengine.event_utlity import EventFacade
+from myflow.flowengine.node import End
 
 class Engine:
     def __init__(self, database_facade : DatabaseFacade, event_facade: EventFacade):
@@ -39,6 +40,10 @@ class Engine:
         if node.state in (State.SUCCESS, State.FAILED, State.KILLED):
             return
 
+        # start node
+        if not node.input_nodes:
+            node.set_input_data(self.database_facade.get_input_data(flow_id))
+
         # check input node state， todo: maybe put this inside database_facade
         ready = True
         for n in node.input_nodes:
@@ -48,6 +53,9 @@ class Engine:
 
         if not ready:
             return
+
+
+
 
         # node = self.database_facade.node_from_database(node_id)
         data = node._work()
@@ -68,9 +76,12 @@ class Engine:
             # send envet to next node
             self.event_facade.send_node_event(event)
 
+
+        # if isinstance(node, End):
+        #     print('--- end node')
+
         # end node
         if not node.output_nodes:
-
             flow = flow_config.new()
             flow.id = flow_id
             flow.work_data = data
@@ -105,18 +116,11 @@ class Engine:
             flow_id = node_event['flow_id']
 
             if not self.database_facade.check_if_flow_state_valid(flow_id):
-                return True # just consume out date msg
+                return True # just consume outdated msg
 
             func = self.process_routine[event_type]
             func(node_event)
 
-        # check event state and data base stated
-
-        # save node to data base and send event to next node
-        # so here we need put seeding event in transaction
-
-
-        # if node type is end, save data and go next loop
         except FlowError as e:
             self._error(e, node_event)
         except Exception as e:

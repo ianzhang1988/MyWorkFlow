@@ -8,23 +8,45 @@ from myflow.flowengine.flow import Flow, FlowConfigration
 from myflow.flowengine.node import Node, Start, End
 
 class First(Start):
-    def __init__(self):
-        super().__init__()
 
     def work(self):
-        self.user_data="1st done"
+        data = self._get_input_data()
+
+        out_data = {}
+        out_data["value"] = data["value"] + 1
+
+        self.work_data = out_data
+        self.user_data={"msg":"1st done"}
         print("First")
+
+        return self.work_data
 
 
 class Second(Node):
     def work(self):
-        self.user_data = "2nd done"
+        data = self._get_node_data(First.__name__)
+
+        out_data = {}
+        out_data["value"] = data["value"] + 1
+
+        self.work_data = out_data
+        self.user_data = {"msg":"2nd done"}
         print("Second")
+
+        return self.work_data
 
 class Third(End):
     def work(self):
-        self.user_data = "3rd done"
+        data = self._get_node_data(Second.__name__)
+
+        out_data = {}
+        out_data["value"] = data["value"] + 1
+
+        self.work_data = out_data
+        self.user_data = {"msg":"3rd done"}
         print("Third")
+
+        return self.work_data
 
 def get_flow_configration():
 
