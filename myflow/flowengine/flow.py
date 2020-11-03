@@ -14,6 +14,12 @@ class Flow:
         self.input_data=None
         self.state = State.PENDING
 
+        self.work_data = None
+        self.user_data = None
+
+        self.create_date = None
+        self.finish_date = None
+
         self.id = None
 
     def set_input_data(self, input_data):
@@ -35,6 +41,9 @@ class FlowConfigration(Flow):
 
     def new(self):
         flow = Flow()
+
+        flow.name = self.name
+
         for n in self.nodes:
             node = self.nodes[n]
             flow.nodes[n] = node.new(node)

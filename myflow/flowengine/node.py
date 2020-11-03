@@ -36,6 +36,12 @@ class Node:
     def output_node_string(self):
         return ",".join(map(lambda x : str(x.node_num), self.output_nodes))
 
+    def _work(self):
+
+        data = self.work()
+
+        return data
+
     def work(self):
         pass
 
@@ -51,3 +57,8 @@ class Start(Node):
 
 class End(Node):
     pass
+
+class Task:
+    def __init__(self):
+        pass
+

@@ -22,3 +22,18 @@ class EventType:
     NODE="node"
     TASK="task"
 
+# ---------- error -----------
+
+class FlowError(Exception):
+    def __init__(self, error_msg, flow_id, node_id=None, task_id=None):
+        super(FlowError, self).__init__(error_msg)
+        self.flow_id = flow_id
+        self.type = "flow"
+
+        if node_id:
+            self.node_id = node_id
+            self.type = "node"
+
+        if task_id:
+            self.task_id = task_id
+            self.type = "task"

@@ -6,11 +6,14 @@
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Text, DateTime
 from sqlalchemy.orm import relationship
+import json
+
+
 from myflow.globalvar import db_session_maker, db_engine
 from datetime import datetime
 
-from myflow.flowengine.flow import FlowConfigration, Flow as FlowMem
-from myflow.flowengine.node import Node as NodeMem
+from myflow.flowengine.flow import FlowConfigration
+from myflow.flowengine.consts import State
 
 Base = declarative_base()
 
@@ -20,6 +23,11 @@ Base = declarative_base()
 #     name = Column(String(256),index=True)
 #     description = Column(String(2**16))
 #     create_date = Column(DateTime(), index=True)
+
+def to_string(data):
+    if isinstance(data, dict):
+        return json.dumps(data)
+    return str(data)
 
 
 class Flow(Base):
@@ -159,18 +167,62 @@ class DatabaseFacade:
         self._set_ioput_node(flow_config, input_nodes_num_str, node, node_mem.input_nodes)
         self._set_ioput_node(flow_config, output_nodes_num_str, node, node_mem.output_nodes)
 
-        # self.session.commit()
-
         return node_mem
 
     def update_node_database(self, node):
-        node_db = self.session.query(Node).filter_by(id=node.id).one()
-        node_db.state = node.state
-        node_db.work_data = node.work_data
-        node_db.user_data = node.user_data
+        update = {
+            Node.state: node.state,
+        }
+
+        if node.work_data:
+            update[Node.work_data] = to_string(node.work_data)
+
+        if node.user_data:
+            update[Node.user_data] = to_string(node.user_data)
 
         if node.finish_date:
-            node_db.finish_date = node.finish_date
+            update[Node.finish_date] = node.finish_date
+
+        self.session.query(Node).filter_by(id=node.id).update(update)
+
+    def update_flow_database(self, flow):
+        update = {
+            Flow.finish_date: flow.finish_date,
+            Flow.state: flow.state
+        }
+
+        if flow.work_data:
+            update[Flow.work_data] = to_string(flow.work_data)
+        if flow.user_data:
+            update[Flow.user_data] = to_string(flow.user_data)
+
+        self.session.query(Flow).filter_by(id=flow.id).update(update)
+
+    def check_if_flow_state_valid(self, flow_id):
+        flow_db = self.session.query(Flow).filter_by(id=flow_id).one()
+        return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
+
+    def update_failed(self, error, flow_id, node_id=None, task_id=None):
+        if task_id:
+            self.session.query(Task).filter_by(id=task_id).update({
+                Task.work_data: to_string(error),
+                Task.finish_date: datetime.now(),
+                Task.state: State.FAILED
+            })
+
+        if node_id:
+            self.session.query(Node).filter_by(id=node_id).update({
+                Node.work_data: to_string(error),
+                Node.finish_date: datetime.now(),
+                Node.state: State.FAILED
+            })
+
+        self.session.query(Flow).filter_by(id=flow_id).update({
+            Flow.work_data: to_string(error),
+            Flow.finish_date: datetime.now(),
+            Flow.state: State.FAILED
+        })
+
         # self.session.commit()
 
     def commit(self):
@@ -221,11 +273,10 @@ if __name__=="__main__":
     flow.nodes.append(node)
     node = Node(node_num=3, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
     flow.nodes.append(node)
-    node = Node(node_num=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data="test data", create_date=datetime.now())
+    node = Node(node_num=4, input_nodes="1,2", output_nodes="3,4", state=State.PENDING, work_data=json.dumps({"v1":"test data"}), create_date=datetime.now())
     flow.nodes.append(node)
 
     session.commit()
-
 
     flows = session.query(Flow)
     for f in flows:
@@ -244,3 +295,7 @@ if __name__=="__main__":
     nodes = flow_1.nodes
     for n in nodes:
         print(n)
+
+    # not SELECT just UPDATE
+    session.query(Flow).filter_by(id=1).update({Flow.state: State.SUCCESS})
+    session.query(Node).filter(Node.flow_id == 2).update({Node.state: State.SUCCESS})

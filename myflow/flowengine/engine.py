@@ -7,7 +7,7 @@ import traceback
 import threading
 from datetime import datetime
 
-from myflow.flowengine.consts import State, EventType
+from myflow.flowengine.consts import State, EventType, FlowError
 from myflow.flowengine.dao import DatabaseFacade
 from myflow.flowengine.event_utlity import EventFacade
 
@@ -29,12 +29,17 @@ class Engine:
 
     def _process_node(self, event):
         flow_name = event['flow_name']
+        flow_id = event['flow_id']
         flow_config = self.flow_config[flow_name]
 
         node_id = event['node_id']
         node = self.database_facade.node_state_from_database(flow_config, node_id)
 
-        # check node state， todo: maybe put this inside database_facade
+        # check node state
+        if node.state in (State.SUCCESS, State.FAILED, State.KILLED):
+            return
+
+        # check input node state， todo: maybe put this inside database_facade
         ready = True
         for n in node.input_nodes:
             if n.state != State.SUCCESS:
@@ -42,10 +47,10 @@ class Engine:
                 break
 
         if not ready:
-            return None
+            return
 
         # node = self.database_facade.node_from_database(node_id)
-        data = node.work()
+        data = node._work()
 
         node.state = State.SUCCESS
         node.finish_date = datetime.now()
@@ -63,6 +68,18 @@ class Engine:
             # send envet to next node
             self.event_facade.send_node_event(event)
 
+        # end node
+        if not node.output_nodes:
+
+            flow = flow_config.new()
+            flow.id = flow_id
+            flow.work_data = data
+            flow.finish_date = datetime.now()
+            flow.state = State.SUCCESS
+
+            # update flow in db
+            self.database_facade.update_flow_database(flow)
+
         self.database_facade.commit()
 
     def _process_task(self, event):
@@ -71,11 +88,24 @@ class Engine:
     def create_flow(self, data):
         pass
 
+    def _error(self, e, node_event):
+        self.database_facade.rollback()
+
+        if node_event['type'] == "node":
+            self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'])
+        if node_event['type'] == "task":
+            self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'],
+                                               node_event['task_id'])
+        self.database_facade.commit()
+
     def one_step(self, node_event):
         try:
             # get node from database
             event_type = node_event['type']
-            node_id = node_event['node_id']
+            flow_id = node_event['flow_id']
+
+            if not self.database_facade.check_if_flow_state_valid(flow_id):
+                return True # just consume out date msg
 
             func = self.process_routine[event_type]
             func(node_event)
@@ -87,9 +117,15 @@ class Engine:
 
 
         # if node type is end, save data and go next loop
+        except FlowError as e:
+            self._error(e, node_event)
         except Exception as e:
-            self.database_facade.rollback()
+            self._error(e, node_event)
+
             traceback.print_exc()
+
+            # sleep ? if there is some bug, sleep can slow down msg from "error retry loop"
+
             return False
 
         return True
