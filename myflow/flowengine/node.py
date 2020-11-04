@@ -43,11 +43,14 @@ class Node:
         return self.input_name2node[name].work_data
 
     def _work(self):
+        self.state = State.WORKING
 
         for n in self.input_nodes:
             self.input_name2node[n.name] = n
 
         data = self.work()
+
+        # self.state = State.SUCCESS
 
         return data
 
@@ -79,5 +82,26 @@ class End(Node):
 
 class Task:
     def __init__(self):
-        pass
+        self.id = None
+        self.node_id = None
+        self.flow_id = None
+
+        self.task_num = None
+        self.state = State.PENDING
+
+        self.work_data = None
+        self.user_data = None
+
+        self.create_date = None
+        self.finish_date = None
+
+class TaskNode(Node):
+    def __init__(self):
+        super(TaskNode, self).__init__()
+        self.tasks = {} # task_num : task
+
+
+class TaskGroupNode(TaskNode):
+    def __init__(self):
+        super().__init__()
 

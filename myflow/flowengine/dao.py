@@ -99,7 +99,7 @@ class Node(Base):
     state = Column(String(256))
     work_data = Column(String(2 ** 24))
     user_data = Column(String(2 ** 24))
-    create_date = Column(DateTime(), index=True)
+    create_date = Column(DateTime())
     finish_date = Column(DateTime())
 
     tasks = relationship("Task", backref="user")
@@ -113,11 +113,14 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     node_id = Column(Integer, ForeignKey("node.id"))
-    # flow_id = Column(Integer, ForeignKey("flow.id"))
+    flow_id = Column(Integer, ForeignKey("flow.id"))
+
+    task_num = Column(Integer)
+    state = Column(String(256))
 
     work_data = Column(String(2 ** 24))
     user_data = Column(String(2 ** 24))
-    create_date = Column(DateTime(), index=True)
+    create_date = Column(DateTime())
     finish_date = Column(DateTime())
 
 class DatabaseFacade:

@@ -6,6 +6,7 @@
 
 from myflow.flowengine.flow import Flow, FlowConfigration
 from myflow.flowengine.node import Node, Start, End
+from myflow.flowengine.consts import State
 
 class First(Start):
 
@@ -18,6 +19,8 @@ class First(Start):
         self.work_data = out_data
         self.user_data={"msg":"1st done"}
         print("First")
+
+        self.state = State.SUCCESS
 
         return self.work_data
 
@@ -33,6 +36,8 @@ class Second(Node):
         self.user_data = {"msg":"2nd done"}
         print("Second")
 
+        self.state = State.SUCCESS
+
         return self.work_data
 
 class Third(End):
@@ -45,6 +50,8 @@ class Third(End):
         self.work_data = out_data
         self.user_data = {"msg":"3rd done"}
         print("Third")
+
+        self.state = State.SUCCESS
 
         return self.work_data
 

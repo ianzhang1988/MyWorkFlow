@@ -45,22 +45,19 @@ class Engine:
             node.set_input_data(self.database_facade.get_input_data(flow_id))
 
         # check input node state， todo: maybe put this inside database_facade
-        ready = True
-        for n in node.input_nodes:
-            if n.state != State.SUCCESS:
-                ready = False
-                break
+        if node.state == State.PENDING:
+            ready = True
+            for n in node.input_nodes:
+                if n.state != State.SUCCESS:
+                    ready = False
+                    break
 
-        if not ready:
-            return
-
-
-
+            if not ready:
+                return
 
         # node = self.database_facade.node_from_database(node_id)
         data = node._work()
 
-        node.state = State.SUCCESS
         node.finish_date = datetime.now()
         self.database_facade.update_node_database(node)
 
