@@ -3,6 +3,8 @@
 # @Author  : ZhangYang
 # @Email   : ian.zhang.88@outlook.com
 
+from abc import ABC, abstractmethod
+
 from myflow.flowengine.consts import State
 
 class Node:
@@ -42,11 +44,14 @@ class Node:
     def _get_node_data(self, name):
         return self.input_name2node[name].work_data
 
+    def _map_node_name(self):
+        for n in self.input_nodes:
+            self.input_name2node[n.name] = n
+
     def _work(self):
         self.state = State.WORKING
 
-        for n in self.input_nodes:
-            self.input_name2node[n.name] = n
+        self._map_node_name()
 
         data = self.work()
 
@@ -89,19 +94,61 @@ class Task:
         self.task_num = None
         self.state = State.PENDING
 
+        self.input_data = None
         self.work_data = None
         self.user_data = None
 
         self.create_date = None
         self.finish_date = None
 
-class TaskNode(Node):
+class TaskNode(Node, ABC):
     def __init__(self):
         super(TaskNode, self).__init__()
         self.tasks = {} # task_num : task
+        self.task_ready = False
+        self.need_send_task = False
+
+    def add_task(self, task):
+        self.tasks[task.task_num] = task
+
+    def task_for_send(self):
+        if self.need_send_task:
+            return self.tasks
+        return None
+
+    def check_tasks_ready(self, ready):
+        self.task_ready = ready
+
+    @abstractmethod
+    def generate_task(self):
+        ...
+
+    @abstractmethod
+    def gather_task(self):
+        ...
+
+    def _work(self):
+        data={}
+
+        self._map_node_name()
+
+        if self.state == State.PENDING:
+            self.generate_task()
+            self.need_send_task = True
+
+        if self.state == State.PENDING:
+            self.state = State.WORKING
+
+        if self.task_ready:
+            data = self.gather_task()
+
+        # self.state = State.SUCCESS
+
+        return data
 
 
-class TaskGroupNode(TaskNode):
-    def __init__(self):
-        super().__init__()
 
+# class TaskGroupNode(TaskNode):
+#     def __init__(self):
+#         super().__init__()
+#

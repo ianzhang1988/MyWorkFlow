@@ -13,6 +13,7 @@ from myflow.globalvar import db_session_maker, db_engine
 from datetime import datetime
 
 from myflow.flowengine.flow import FlowConfigration
+from myflow.flowengine.node import Task as TaskMem
 from myflow.flowengine.consts import State
 
 Base = declarative_base()
@@ -118,6 +119,7 @@ class Task(Base):
     task_num = Column(Integer)
     state = Column(String(256))
 
+    input_data = Column(String(2 ** 24))
     work_data = Column(String(2 ** 24))
     user_data = Column(String(2 ** 24))
     create_date = Column(DateTime())
@@ -156,6 +158,29 @@ class DatabaseFacade:
 
                 node_mem_nodes.append(node_mem)
 
+    def load_tasks(self, node):
+        tasks = self.session.query(Task).filter_by(node_id = node.id).all()
+        if not tasks:
+            return
+
+        for db_task in tasks:
+
+            t = TaskMem()
+            t.id = db_task.id
+            t.node_id = db_task.node_id
+            t.flow_id = db_task.flow_id
+
+            t.task_num = db_task.task_num
+            t.state = db_task.state
+
+            # t.input_data = None
+            t.work_data = db_task.work_data
+            t.user_data = db_task.user_data
+
+            # t.create_date = None
+            # t.finish_date = None
+            node.add_task(t.task_num, t)
+
     def node_from_database(self, flow_config, node_id):
 
         node = self.session.query(Node).filter_by(id=node_id).one()
@@ -171,6 +196,9 @@ class DatabaseFacade:
 
         self._set_ioput_node(flow_config, input_nodes_num_str, node, node_mem.input_nodes)
         self._set_ioput_node(flow_config, output_nodes_num_str, node, node_mem.output_nodes)
+
+        if flow_config.is_task_node():
+            self.load_tasks(node)
 
         return node_mem
 
@@ -210,6 +238,9 @@ class DatabaseFacade:
     def check_if_flow_state_valid(self, flow_id):
         flow_db = self.session.query(Flow).filter_by(id=flow_id).one()
         return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
+
+    def check_if_task_in_node_finish(self, node_id):
+
 
     def update_failed(self, error, flow_id, node_id=None, task_id=None):
         if task_id:

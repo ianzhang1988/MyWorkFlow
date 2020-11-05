@@ -4,6 +4,7 @@
 # @Email   : ian.zhang.88@outlook.com
 
 from myflow.flowengine.consts import State
+from myflow.flowengine.node import TaskNode
 
 class Flow:
     def __init__(self):
@@ -62,5 +63,5 @@ class FlowConfigration(Flow):
         node = self.nodes[node_num]
         return node.new(node)
 
-
-
+    def is_task_node(self, node_num):
+        return isinstance(self.nodes[node_num], TaskNode)
