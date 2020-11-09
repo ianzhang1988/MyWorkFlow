@@ -96,6 +96,9 @@ class Engine:
         flow_config = self.flow_config[flow_name]
 
         node_id = event['node_id']
+        task_id = event.get('task_id', None)
+
+
         node = self.database_facade.node_state_from_database(flow_config, node_id)
 
         # check node state
@@ -118,9 +121,12 @@ class Engine:
                 return
 
         # node = self.database_facade.node_from_database(node_id)
+
         if flow_config.is_task_node(node.node_num):
-            node.check_tasks_ready(self.database_facade.check_if_task_in_node_finish(node.id))
-            data = node._work()
+
+            node.reg_check_tasks_state_call( lambda : self.database_facade.check_if_task_in_node_finish(node.id))
+            node.reg_get_tasks_call(lambda : self.database_facade.load_tasks(node))
+            data = node._work() # should commit before node._work()
             tasks = node.task_for_send()
             if tasks:
                 self.database_facade.add_task(tasks)

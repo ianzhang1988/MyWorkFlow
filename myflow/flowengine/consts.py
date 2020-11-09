@@ -13,10 +13,10 @@ class State:
     SUCCESS = "success"
 
 @unique
-class NodeType(Enum):
-    Start = 1
-    Inter = 2
-    End   = 3
+class TaskState(Enum):
+    Waiting  = 1
+    Finished = 2
+    Error    = 3
 
 class EventType:
     NODE="node"

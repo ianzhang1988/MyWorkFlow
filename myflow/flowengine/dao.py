@@ -197,8 +197,8 @@ class DatabaseFacade:
         self._set_ioput_node(flow_config, input_nodes_num_str, node, node_mem.input_nodes)
         self._set_ioput_node(flow_config, output_nodes_num_str, node, node_mem.output_nodes)
 
-        if flow_config.is_task_node():
-            self.load_tasks(node)
+        # if flow_config.is_task_node(node.node_num):
+        #     self.load_tasks(node)
 
         return node_mem
 
@@ -240,15 +240,15 @@ class DatabaseFacade:
         return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
 
     def check_if_task_in_node_finish(self, node_id):
-
+        self.session.query(Task)
 
     def update_failed(self, error, flow_id, node_id=None, task_id=None):
-        if task_id:
-            self.session.query(Task).filter_by(id=task_id).update({
-                Task.work_data: to_string(error),
-                Task.finish_date: datetime.now(),
-                Task.state: State.FAILED
-            })
+        # if task_id:
+        #     self.session.query(Task).filter_by(id=task_id).update({
+        #         Task.work_data: to_string(error),
+        #         Task.finish_date: datetime.now(),
+        #         Task.state: State.FAILED
+        #     })
 
         if node_id:
             self.session.query(Node).filter_by(id=node_id).update({

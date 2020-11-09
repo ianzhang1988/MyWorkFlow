@@ -5,7 +5,7 @@
 
 from abc import ABC, abstractmethod
 
-from myflow.flowengine.consts import State
+from myflow.flowengine.consts import State, TaskState, FlowError
 
 class Node:
     def __init__(self):
@@ -105,8 +105,11 @@ class TaskNode(Node, ABC):
     def __init__(self):
         super(TaskNode, self).__init__()
         self.tasks = {} # task_num : task
-        self.task_ready = False
+        self.task_state = TaskState.Waiting
         self.need_send_task = False
+
+        self._get_tasks_state = None
+        self._get_tasks = None
 
     def add_task(self, task):
         self.tasks[task.task_num] = task
@@ -116,8 +119,17 @@ class TaskNode(Node, ABC):
             return self.tasks
         return None
 
-    def check_tasks_ready(self, ready):
-        self.task_ready = ready
+    def reg_check_tasks_state_call(self, call):
+        self._get_tasks_state = call
+
+    def reg_get_tasks_call(self, call):
+        self._get_tasks = call
+
+    def _error_handle(self):
+        for t in self.tasks:
+            if t.state == State.FAILED:
+                error = t.work_data.get("error","no error msg")
+                raise FlowError(error, self.flow_id, self.id)
 
     @abstractmethod
     def generate_task(self):
@@ -132,14 +144,23 @@ class TaskNode(Node, ABC):
 
         self._map_node_name()
 
+        # State.PENDING
         if self.state == State.PENDING:
             self.generate_task()
             self.need_send_task = True
-
-        if self.state == State.PENDING:
             self.state = State.WORKING
+            return data
 
-        if self.task_ready:
+        # State.WORKING
+        self.task_state = self._get_tasks_state()
+
+        if self.task_state != TaskState.Waiting:
+            self._get_tasks()
+
+        if self.task_state == TaskState.Error:
+            self._error_handle()
+
+        if self.task_state == TaskState.Finished:
             data = self.gather_task()
 
         # self.state = State.SUCCESS
