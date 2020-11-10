@@ -18,7 +18,7 @@ init_database()
 flow_config = dummy_flow.get_flow_configration()
 
 flow = flow_config.new()
-input = {"value":0}
+input = {"value":0, "list": [1,2,3,4,5]}
 flow.set_input_data(input)
 flow_dao = FlowDao(flow, db_session_maker)
 flow_id, start_node_id = flow_dao.create()
@@ -35,6 +35,7 @@ event = {
 
 event_facade = EventFacade('10.19.17.188', 5673)
 event_facade.connect()
+event_facade.start_dummy_event()
 event_facade.send_node_event(event)
 db_facade = DatabaseFacade()
 engine = Engine(db_facade, event_facade)

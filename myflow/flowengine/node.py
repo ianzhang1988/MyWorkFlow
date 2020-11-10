@@ -6,6 +6,7 @@
 from abc import ABC, abstractmethod
 
 from myflow.flowengine.consts import State, TaskState, FlowError
+from datetime import datetime
 
 class Node:
     def __init__(self):
@@ -94,9 +95,9 @@ class Task:
         self.task_num = None
         self.state = State.PENDING
 
-        self.input_data = None
-        self.work_data = None
-        self.user_data = None
+        self.input_data = {}
+        self.work_data = {}
+        self.user_data = {}
 
         self.create_date = None
         self.finish_date = None
@@ -131,6 +132,16 @@ class TaskNode(Node, ABC):
                 error = t.work_data.get("error","no error msg")
                 raise FlowError(error, self.flow_id, self.id)
 
+    def _new_task(self, task_num):
+        task = Task()
+        task.task_num = task_num
+        task.flow_id = self.flow_id
+        task.node_id = self.id
+        task.create_date = datetime.now()
+
+        return task
+
+
     @abstractmethod
     def generate_task(self):
         ...
@@ -153,6 +164,10 @@ class TaskNode(Node, ABC):
 
         # State.WORKING
         self.task_state = self._get_tasks_state()
+
+        if self.task_state == TaskState.Killed:
+            # if killed just ignore the task
+            return data
 
         if self.task_state != TaskState.Waiting:
             self._get_tasks()

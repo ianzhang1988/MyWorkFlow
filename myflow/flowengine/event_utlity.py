@@ -8,6 +8,9 @@ from pika.adapters.utils.connection_workflow import AMQPConnectorException
 import json
 import threading, traceback, functools, logging, time
 
+from myflow.globalvar import dummy_event_queue
+from queue import Empty
+
 # def make_node_event():
 #     event = {
 #         "type":,
@@ -56,6 +59,17 @@ class EventFacade:
             properties=pika.BasicProperties(
                 delivery_mode=2,  # make message persistent
             ))
+
+    def send_task(self, tasks, flow_name = None):
+        for t in tasks:
+            event = {
+                "flow_id": t.flow_id,
+                "node_id": t.node_id,
+                "task_id": t.id,
+            }
+            if flow_name:
+                event["flow_name"] = flow_name
+            self.sent_task_event(event)
 
     def sent_task_event(self, event: dict):
 
@@ -147,3 +161,17 @@ class EventFacade:
 
     def stop(self):
         self.work_flag = False
+
+    def start_dummy_event(self):
+        t = threading.Thread(target=self._dummy_send_node_event)
+        t.daemon = True
+        t.start()
+
+    def _dummy_send_node_event(self):
+        while self.work_flag:
+            try:
+                event = dummy_event_queue.get(timeout=1)
+                cb = functools.partial(self.send_node_event, event)
+                self.connection.add_callback_threadsafe(cb)
+            except Empty:
+                continue

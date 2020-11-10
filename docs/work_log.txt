@@ -1,0 +1,40 @@
+
+2020-11-10:
+
+self.database_facade.add_task(tasks)
+self.event_facade.send_task(tasks)
+self.database_facade.commit()
+
+# 上面这个样子，commit后线程挂了，那么就没有事件发送出来，流程就停住了
+# 下面的方式，有个问题，如果消息先被处理了，而commit还没有做完，接收端可能拿不到正确的数据
+
+self.database_facade.add_task(tasks)
+self.database_facade.commit()
+self.event_facade.send_task(tasks)
+
+# 事务性发件箱模式，看来还是最成熟的方式
+
+先按照第一种方式，把整个流程过一下
+然后把消息的发送改成事件发件箱模式
+
+
+2020-10-20:
+经过了一段时间的考虑，大致决定了用哪些工具，现在需要把概念转换到代码上面
+
+
+2020-10-20 之前:
+
+# 在docker上跑一个数据库用来测试
+docker run --name some-mysql -v /opt/zhangyang/mysql/db1:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=zhang -d mysql
+docker run -it --rm mysql mysql -uroot -p
+
+docker run --name some-mysql -v /opt/zhangyang/mysql/db1:/var/lib/mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=zhang -d mysql:5
+docker run -it --rm mysql:5 mysql -h10.19.17.188 -P3306 -uroot -pzhang
+
+# perfect workerflow engine，也许可以参考一下
+https://docs.prefect.io
+
+
+uvicorn job_model_server:app --port 12345 --no-access-log
+
+uvicorn job_model_server:app --port 12345 --no-access-log --workers 10 --lifespan off

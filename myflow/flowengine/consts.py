@@ -17,6 +17,7 @@ class TaskState(Enum):
     Waiting  = 1
     Finished = 2
     Error    = 3
+    Killed   = 4
 
 class EventType:
     NODE="node"

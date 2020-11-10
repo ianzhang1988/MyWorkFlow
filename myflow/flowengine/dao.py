@@ -14,7 +14,7 @@ from datetime import datetime
 
 from myflow.flowengine.flow import FlowConfigration
 from myflow.flowengine.node import Task as TaskMem
-from myflow.flowengine.consts import State
+from myflow.flowengine.consts import State, TaskState
 
 Base = declarative_base()
 
@@ -239,8 +239,35 @@ class DatabaseFacade:
         flow_db = self.session.query(Flow).filter_by(id=flow_id).one()
         return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
 
-    def check_if_task_in_node_finish(self, node_id):
-        self.session.query(Task)
+    def check_task_state(self, node_id):
+
+        task_state = TaskState.Waiting
+
+        all_state = self.session.query(Task.state).filter(Task.node_id==node_id).all()
+
+        for (state,) in all_state:
+            if state == state.FAILED:
+                task_state = TaskState.Error
+                break
+            if state == state.KILLED:
+                task_state = TaskState.Killed
+                break
+
+        if all(map(lambda x:x==State.SUCCESS, all_state)):
+            task_state = TaskState.Finished
+
+        return task_state
+
+    def add_task(self, tasks):
+        for t in tasks:
+            t_db = Task(
+                node_id = t.node_id,
+                flow_id = t.flow_id,
+                input_data = t.input_data,
+                create_date = t.create_daten
+            )
+
+            self.session.add(t_db)
 
     def update_failed(self, error, flow_id, node_id=None, task_id=None):
         # if task_id:

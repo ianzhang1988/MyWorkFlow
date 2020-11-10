@@ -124,15 +124,15 @@ class Engine:
 
         if flow_config.is_task_node(node.node_num):
 
-            node.reg_check_tasks_state_call( lambda : self.database_facade.check_if_task_in_node_finish(node.id))
+            node.reg_check_tasks_state_call(lambda : self.database_facade.check_task_state(node.id))
             node.reg_get_tasks_call(lambda : self.database_facade.load_tasks(node))
-            data = node._work() # should commit before node._work()
+            data = node._work()
             tasks = node.task_for_send()
             if tasks:
                 self.database_facade.add_task(tasks)
-                self.event_facade.send_task(tasks)
+                self.event_facade.send_task(tasks, flow_name)
         else:
-            data = node._work()
+            data = node._work() # just make sure this is short, so we don't have to commit all around
 
         if node.state == State.SUCCESS:
 
