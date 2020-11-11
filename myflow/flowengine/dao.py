@@ -114,7 +114,7 @@ class Task(Base):
 
     id = Column(Integer, primary_key=True)
     node_id = Column(Integer, ForeignKey("node.id"))
-    flow_id = Column(Integer, ForeignKey("flow.id"))
+    flow_id = Column(Integer) #,ForeignKey("flow.id")
 
     task_num = Column(Integer)
     state = Column(String(256))
@@ -263,8 +263,9 @@ class DatabaseFacade:
             t_db = Task(
                 node_id = t.node_id,
                 flow_id = t.flow_id,
-                input_data = t.input_data,
-                create_date = t.create_daten
+                task_num = t.task_num,
+                input_data = to_string(t.input_data),
+                create_date = t.create_date,
             )
 
             self.session.add(t_db)

@@ -91,6 +91,9 @@ class Engine:
         self.database_facade.commit()
 
     def _process_node2(self, event):
+        t = threading.currentThread()
+        print('_process_node2 Thread id : %d  name : %s' % (t.ident,t.getName()))
+
         flow_name = event['flow_name']
         flow_id = event['flow_id']
         flow_config = self.flow_config[flow_name]
@@ -174,20 +177,32 @@ class Engine:
     def create_flow(self, data):
         pass
 
+    # def _error(self, e, node_event):
+    #     self.database_facade.rollback()
+    #
+    #     if node_event['type'] == "node":
+    #         self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'])
+    #     if node_event['type'] == "task":
+    #         self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'],
+    #                                            node_event['task_id'])
+    #     self.database_facade.commit()
+
     def _error(self, e, node_event):
         self.database_facade.rollback()
 
-        if node_event['type'] == "node":
-            self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'])
-        if node_event['type'] == "task":
-            self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'],
-                                               node_event['task_id'])
+        self.database_facade.update_failed(str(e), node_event['flow_id'], node_event['node_id'])
+
         self.database_facade.commit()
 
     def one_step(self, node_event):
         try:
+            t = threading.currentThread()
+            print('one_step Thread id : %d  name : %s' % (t.ident, t.getName()))
+            print("one_step %s"%node_event)
+
+            self.database_facade.init_session()
             # get node from database
-            event_type = node_event['type']
+            # event_type = node_event['type']
             flow_id = node_event['flow_id']
 
             if not self.database_facade.check_if_flow_state_valid(flow_id):
@@ -203,7 +218,7 @@ class Engine:
         except Exception as e:
             self._error(e, node_event)
 
-            traceback.print_exc()
+            print("one step Error: %s\n" % traceback.format_exc())
 
             # sleep ? if there is some bug, sleep can slow down msg from "error retry loop"
 
@@ -220,7 +235,11 @@ class Engine:
         self.work_thread.join()
 
     def _run(self, thread_local_callback):
-        thread_local_callback()
+        # 这里的session的线程，和每次处理消息的线程不是同一个，没有报错，难道是commit的时候，会“刷新”session
+        # thread_local_callback()
+
+        # t = threading.currentThread()
+        # print('init session Thread id : %d  name : %s' % (t.ident,t.getName()))
         self.event_facade.get_node_event(self.one_step)
 
 

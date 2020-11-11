@@ -3,17 +3,21 @@
 # @Author  : ZhangYang
 # @Email   : ian.zhang.88@outlook.com
 
-from myflow.globalvar import db_session_maker
-from myflow.flowengine.dao import Task
-from myflow.globalvar import dummy_event_queue
-
+from threading import Thread
 import pika
 import json
 
-class Worker:
-    def __init__(self):
+from myflow.globalvar import db_session_maker
+from myflow.flowengine.dao import Task
+from myflow.globalvar import dummy_event_queue
+import sqlalchemy
+
+
+class Worker(Thread):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args,**kwargs)
         self.work_flag = True
-        self.db_session = db_session_maker()
+        self.db_session = None
 
     def stop(self):
         self.work_flag = False
@@ -30,6 +34,8 @@ class Worker:
 
 
     def run(self):
+        self.db_session = db_session_maker()
+
         connection = pika.BlockingConnection(
             pika.ConnectionParameters(host='10.19.17.188', port=5673))
         channel = connection.channel()
@@ -44,11 +50,23 @@ class Worker:
             if not method:
                 continue
 
+            print("+++ dummy worker body %s" % body)
             task_event = json.loads(body)
 
             task_id = task_event["task_id"]
+            node_id = task_event["node_id"]
+            task_num = task_event["task_num"]
 
-            task = self.db_session.query(Task).filter(Task.id == task_id)
+            print("+++ dummy worker task_id %s" % task_id)
+            try:
+                if task_id:
+                    task = self.db_session.query(Task).filter(Task.id == task_id).one()
+                else:
+                    task = self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num).one()
+            except sqlalchemy.orm.exc.NoResultFound as e:
+                print("!!!! data error, continue")
+                channel.basic_ack(method.delivery_tag)
+                continue
 
             input_data = json.loads(task.input_data)
 

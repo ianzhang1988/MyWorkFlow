@@ -30,6 +30,7 @@ class EventFacade:
 
         self.connection = None
         self.node_channel = None
+        self.node_send_channel = None
         self.task_channel = None
 
         self.node_queue_name = 'node_queue'
@@ -45,20 +46,38 @@ class EventFacade:
         self.node_channel.queue_declare(queue=self.node_queue_name, durable=True)
         self.node_channel.basic_qos(prefetch_count=1)
         self.node_channel.confirm_delivery()
+        # 貌似，用相同的node channel 发送node 事件，会造成读取node事件的时候同时读取多个，引起数据库的问题（一个数据库连接，给多个线程使用）
+        self.node_send_channel = self.connection.channel()
+        self.node_send_channel.confirm_delivery()
         self.task_channel = self.connection.channel()
         self.task_channel.queue_declare(queue=self.task_queue_name, durable=True)
         self.task_channel.confirm_delivery()
 
+    # def send_node_event(self, event: dict):
+    #
+    #     content = json.dumps(event)
+    #     self.node_send_channel.basic_publish(
+    #         exchange='',
+    #         routing_key=self.node_queue_name,
+    #         body=content,
+    #         properties=pika.BasicProperties(
+    #             delivery_mode=2,  # make message persistent
+    #         ))
+
     def send_node_event(self, event: dict):
 
-        content = json.dumps(event)
-        self.node_channel.basic_publish(
-            exchange='',
-            routing_key=self.node_queue_name,
-            body=content,
-            properties=pika.BasicProperties(
-                delivery_mode=2,  # make message persistent
-            ))
+        def helper():
+            print("+++send_node_event: %s" % event)
+            content = json.dumps(event)
+            self.node_send_channel.basic_publish(
+                exchange='',
+                routing_key=self.node_queue_name,
+                body=content,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # make message persistent
+                ))
+
+        self.connection.add_callback_threadsafe(helper)
 
     def send_task(self, tasks, flow_name = None):
         for t in tasks:
@@ -66,21 +85,36 @@ class EventFacade:
                 "flow_id": t.flow_id,
                 "node_id": t.node_id,
                 "task_id": t.id,
+                "task_num": t.task_num,
             }
             if flow_name:
                 event["flow_name"] = flow_name
             self.sent_task_event(event)
 
+    # def sent_task_event(self, event: dict):
+    #
+    #     content = json.dumps(event)
+    #     self.task_channel.basic_publish(
+    #         exchange='',
+    #         routing_key=self.task_queue_name,
+    #         body=content,
+    #         properties=pika.BasicProperties(
+    #             delivery_mode=2,  # make message persistent
+    #         ))
+
     def sent_task_event(self, event: dict):
 
-        content = json.dumps(event)
-        self.node_channel.basic_publish(
-            exchange='',
-            routing_key=self.task_queue_name,
-            body=content,
-            properties=pika.BasicProperties(
-                delivery_mode=2,  # make message persistent
-            ))
+        def helper():
+            content = json.dumps(event)
+            self.task_channel.basic_publish(
+                exchange='',
+                routing_key=self.task_queue_name,
+                body=content,
+                properties=pika.BasicProperties(
+                    delivery_mode=2,  # make message persistent
+                ))
+
+        self.connection.add_callback_threadsafe(helper)
 
     def do_work(self, event, connection, channel, delivery_tag, event_callback):
         try:
@@ -121,6 +155,8 @@ class EventFacade:
                 # MQ Main Loop
                 for method, properties, body in self.node_channel.consume(self.node_queue_name, inactivity_timeout=1):
 
+                    self.connection.process_data_events()
+
                     if not self.work_flag:
                         break
 
@@ -150,6 +186,7 @@ class EventFacade:
                 break
                 # Recover on all other connection errors
             except pika.exceptions.AMQPConnectionError:
+                traceback.print_exc()
                 logging.warning("Connection was closed, retrying...")
                 continue
             except AMQPConnectorException as e:

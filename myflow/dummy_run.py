@@ -12,6 +12,7 @@ from myflow.flowengine.event_utlity import EventFacade
 from myflow.flowengine.engine import Engine
 
 from myflow.flowengine.consts import EventType
+from myflow.dummy_worker import Worker
 
 init_database()
 
@@ -25,6 +26,10 @@ flow_id, start_node_id = flow_dao.create()
 
 print('----- flow_id', flow_id,"start_node_id",start_node_id)
 
+
+worker = Worker()
+worker.start()
+
 # event
 event = {
     "flow_name":"dummy",
@@ -33,10 +38,18 @@ event = {
     "node_id":start_node_id,
 }
 
+import threading
+t = threading.currentThread()
+print('main Thread id : %d  name : %s' % (t.ident, t.getName()))
+
+event_facade2 = EventFacade('10.19.17.188', 5673)
+event_facade2.connect()
+event_facade2.send_node_event(event)
+event_facade2.connection.process_data_events()
+
 event_facade = EventFacade('10.19.17.188', 5673)
-event_facade.connect()
 event_facade.start_dummy_event()
-event_facade.send_node_event(event)
+# event_facade.send_node_event(event)
 db_facade = DatabaseFacade()
 engine = Engine(db_facade, event_facade)
 engine.register_flow(flow_config.name, flow_config)
@@ -50,4 +63,7 @@ for _ in range(1000):
         print("KeyboardInterrupt")
         break
 
+worker.stop()
 engine.stop()
+
+worker.join()

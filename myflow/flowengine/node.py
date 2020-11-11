@@ -43,6 +43,8 @@ class Node:
         return ",".join(map(lambda x : str(x.node_num), self.output_nodes))
 
     def _get_node_data(self, name):
+        if name not in self.input_name2node:
+            return {}
         return self.input_name2node[name].work_data
 
     def _map_node_name(self):
@@ -117,7 +119,7 @@ class TaskNode(Node, ABC):
 
     def task_for_send(self):
         if self.need_send_task:
-            return self.tasks
+            return self.tasks.values()
         return None
 
     def reg_check_tasks_state_call(self, call):
