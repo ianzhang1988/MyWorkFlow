@@ -94,6 +94,7 @@ class Engine:
         t = threading.currentThread()
         print('_process_node2 Thread id : %d  name : %s' % (t.ident,t.getName()))
 
+        tasks = None
         flow_name = event['flow_name']
         flow_id = event['flow_id']
         flow_config = self.flow_config[flow_name]
@@ -133,9 +134,11 @@ class Engine:
             tasks = node.task_for_send()
             if tasks:
                 self.database_facade.add_task(tasks)
-                self.event_facade.send_task(tasks, flow_name)
+                # self.event_facade.send_task(tasks, flow_name)
         else:
             data = node._work() # just make sure this is short, so we don't have to commit all around
+
+        self.database_facade.update_node_database(node)
 
         if node.state == State.SUCCESS:
 
@@ -170,6 +173,8 @@ class Engine:
                 self.database_facade.update_flow_database(flow)
 
         self.database_facade.commit()
+        if tasks:
+            self.event_facade.send_task(tasks, flow_name)
 
     def _process_task(self, event):
         pass
@@ -215,6 +220,7 @@ class Engine:
 
         except FlowError as e:
             self._error(e, node_event)
+            return False
         except Exception as e:
             self._error(e, node_event)
 

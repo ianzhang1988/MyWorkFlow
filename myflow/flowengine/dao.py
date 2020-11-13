@@ -30,6 +30,11 @@ def to_string(data):
         return json.dumps(data)
     return str(data)
 
+def to_dict(string):
+    if string:
+        return json.loads(string)
+    else:
+        return string
 
 class Flow(Base):
     __tablename__ = "flow"
@@ -174,12 +179,12 @@ class DatabaseFacade:
             t.state = db_task.state
 
             # t.input_data = None
-            t.work_data = db_task.work_data
-            t.user_data = db_task.user_data
+            t.work_data = to_dict(db_task.work_data)
+            t.user_data = to_dict(db_task.user_data)
 
             # t.create_date = None
             # t.finish_date = None
-            node.add_task(t.task_num, t)
+            node.add_task(t)
 
     def node_from_database(self, flow_config, node_id):
 
@@ -236,8 +241,11 @@ class DatabaseFacade:
         return json.loads(input_data)
 
     def check_if_flow_state_valid(self, flow_id):
-        flow_db = self.session.query(Flow).filter_by(id=flow_id).one()
-        return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
+        flow_db = self.session.query(Flow).filter_by(id=flow_id).one_or_none()
+        if flow_db:
+            return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
+        else:
+            return False
 
     def check_task_state(self, node_id):
 
@@ -245,15 +253,21 @@ class DatabaseFacade:
 
         all_state = self.session.query(Task.state).filter(Task.node_id==node_id).all()
 
+        state_list = []
         for (state,) in all_state:
-            if state == state.FAILED:
+            state_list.append(state)
+        state_string = " ".join(state_list)
+        print("%%%%%%  check_task_state %s" % state_string)
+
+        for (state,) in all_state:
+            if state == State.FAILED:
                 task_state = TaskState.Error
                 break
-            if state == state.KILLED:
+            if state == State.KILLED:
                 task_state = TaskState.Killed
                 break
 
-        if all(map(lambda x:x==State.SUCCESS, all_state)):
+        if all(map(lambda x:x[0]==State.SUCCESS, all_state)):
             task_state = TaskState.Finished
 
         return task_state

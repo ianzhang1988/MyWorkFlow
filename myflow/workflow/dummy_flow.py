@@ -73,7 +73,7 @@ class Double(TaskNode):
 
     def gather_task(self):
         doubled_number = []
-        for t in self.tasks:
+        for t in self.tasks.values():
             doubled_number.append(t.work_data["value"])
         self.work_data["list"] = doubled_number
 

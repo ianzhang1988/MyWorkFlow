@@ -6,8 +6,10 @@
 from threading import Thread
 import pika
 import json
+import logging
 
 from myflow.globalvar import db_session_maker
+from myflow.flowengine.consts import State
 from myflow.flowengine.dao import Task
 from myflow.globalvar import dummy_event_queue
 import sqlalchemy
@@ -57,22 +59,29 @@ class Worker(Thread):
             node_id = task_event["node_id"]
             task_num = task_event["task_num"]
 
-            print("+++ dummy worker task_id %s" % task_id)
             try:
                 if task_id:
                     task = self.db_session.query(Task).filter(Task.id == task_id).one()
                 else:
-                    task = self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num).one()
+                    print("!!!!!!!!!!",self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num))
+                    task = self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num).first()
             except sqlalchemy.orm.exc.NoResultFound as e:
                 print("!!!! data error, continue")
                 channel.basic_ack(method.delivery_tag)
                 continue
+
+            if not task:
+                logging.error("dummy worker task no task found %s", body)
+                continue
+
+            task.state = State.WORKING
 
             input_data = json.loads(task.input_data)
 
             output_value = input_data["value"]*2
 
             task.work_data = json.dumps({"value": output_value})
+            task.state = State.SUCCESS
 
             self.db_session.commit()
             self.send_event(task_event)

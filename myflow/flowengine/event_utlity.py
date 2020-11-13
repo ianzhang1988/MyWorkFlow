@@ -47,6 +47,7 @@ class EventFacade:
         self.node_channel.basic_qos(prefetch_count=1)
         self.node_channel.confirm_delivery()
         # 貌似，用相同的node channel 发送node 事件，会造成读取node事件的时候同时读取多个，引起数据库的问题（一个数据库连接，给多个线程使用）
+        # 2020-11-13： 可能不是这样，现在的现象和上面的描述不太一致
         self.node_send_channel = self.connection.channel()
         self.node_send_channel.confirm_delivery()
         self.task_channel = self.connection.channel()
@@ -205,6 +206,7 @@ class EventFacade:
         t.start()
 
     def _dummy_send_node_event(self):
+        time.sleep(2)
         while self.work_flag:
             try:
                 event = dummy_event_queue.get(timeout=1)

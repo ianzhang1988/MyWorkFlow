@@ -4,6 +4,7 @@
 # @Email   : ian.zhang.88@outlook.com
 
 import time
+import logging
 
 from myflow.globalvar import db_session_maker
 from myflow.workflow import dummy_flow
@@ -13,6 +14,10 @@ from myflow.flowengine.engine import Engine
 
 from myflow.flowengine.consts import EventType
 from myflow.dummy_worker import Worker
+
+logging.basicConfig(level=logging.INFO,format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
+                datefmt='%a, %d %b %Y %H:%M:%S')
+
 
 init_database()
 

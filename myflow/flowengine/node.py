@@ -18,8 +18,8 @@ class Node:
 
         self.input_name2node = {}
 
-        self.work_data = None
-        self.user_data = None
+        self.work_data = {}
+        self.user_data = {}
 
         self.state = State.PENDING
 
@@ -166,6 +166,8 @@ class TaskNode(Node, ABC):
 
         # State.WORKING
         self.task_state = self._get_tasks_state()
+
+        print("&&&&&&& task_state %s", self.task_state)
 
         if self.task_state == TaskState.Killed:
             # if killed just ignore the task
