@@ -68,7 +68,6 @@ class EventFacade:
     def send_node_event(self, event: dict):
 
         def helper():
-            print("+++send_node_event: %s" % event)
             content = json.dumps(event)
             self.node_send_channel.basic_publish(
                 exchange='',

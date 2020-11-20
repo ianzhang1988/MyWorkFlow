@@ -5,8 +5,9 @@
 
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Text, DateTime
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, defer, undefer
 import json
+import logging
 
 
 from myflow.globalvar import db_session_maker, db_engine
@@ -137,21 +138,56 @@ class DatabaseFacade:
     def init_session(self):
         self.session = db_session_maker()
 
+    def release_session(self):
+        self.session.close()
+
     def node_state_from_database(self, flow_config , node_id):
         # let keep it simple for now
-        return self.node_from_database(flow_config, node_id)
+        # return self.node_from_database(flow_config, node_id)
 
-    def _set_ioput_node(self, flow_config, nodes_num_str, node, node_mem_nodes):
+        node = self.session.query(Node).filter_by(id=node_id).options(defer("work_data"),defer("user_data")).one()
+        logging.info("node_from_database got node %s", node)
+
+        node_mem = flow_config.new_node(node.node_num)
+        node_mem.state = node.state
+        node_mem.id = node.id
+        node_mem.flow_id = node.flow_id
+
+        input_nodes_num_str = node.input_nodes
+
+        node_nums = self._get_node_num(input_nodes_num_str)
+
+        if node_nums:
+            nodes = self.session.query(Node).filter(Node.flow_id == node.flow_id).filter(
+                Node.node_num.in_(node_nums)).options(defer("work_data"),defer("user_data"))
+
+            for n in nodes:
+                print("+++++++", n)
+                input_node_mem = flow_config.new_node(n.node_num)
+                input_node_mem.state = n.state
+                input_node_mem.id = n.id
+                input_node_mem.flow_id = n.flow_id
+
+                node_mem.input_nodes.append(input_node_mem)
+
+        return node_mem
+
+
+    def _get_node_num(self, nodes_num_str):
         node_num = []
         if "," not in nodes_num_str:
             node_num.append(nodes_num_str)
         else:
             node_num = nodes_num_str.split(",")
+        return node_num
+
+    def _set_ioput_node(self, flow_config, nodes_num_str, node, node_mem_nodes):
+        node_num = self._get_node_num(nodes_num_str)
 
         if node_num:
-            input_nodes = self.session.query(Node).filter(Node.flow_id==node.flow_id).filter(
+            nodes = self.session.query(Node).filter(Node.flow_id==node.flow_id).filter(
                 Node.node_num.in_(node_num))
-            for n in input_nodes:
+            for n in nodes:
                 node_mem = flow_config.new_node(n.node_num)
                 node_mem.state = n.state
                 node_mem.id = n.id
@@ -189,7 +225,7 @@ class DatabaseFacade:
     def node_from_database(self, flow_config, node_id):
 
         node = self.session.query(Node).filter_by(id=node_id).one()
-        print('------ dao.py node_from_database ', node)
+        logging.info("node_from_database got node %s", node)
 
         node_mem = flow_config.new_node(node.node_num)
         node_mem.state = node.state
@@ -243,8 +279,10 @@ class DatabaseFacade:
     def check_if_flow_state_valid(self, flow_id):
         flow_db = self.session.query(Flow).filter_by(id=flow_id).one_or_none()
         if flow_db:
+            logging.debug("check_if_flow_state_valid state: %d", flow_db.state)
             return flow_db.state not in (State.SUCCESS, State.FAILED, State.KILLED)
         else:
+            logging.debug("check_if_flow_state_valid flow_id not found: %d",flow_id)
             return False
 
     def check_task_state(self, node_id):

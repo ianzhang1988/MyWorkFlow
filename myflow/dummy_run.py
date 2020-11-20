@@ -59,7 +59,7 @@ db_facade = DatabaseFacade()
 engine = Engine(db_facade, event_facade)
 engine.register_flow(flow_config.name, flow_config)
 
-engine.run(lambda : db_facade.init_session() )
+engine.run()
 
 for _ in range(1000):
     try:

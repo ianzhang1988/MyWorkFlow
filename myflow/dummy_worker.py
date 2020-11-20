@@ -3,6 +3,7 @@
 # @Author  : ZhangYang
 # @Email   : ian.zhang.88@outlook.com
 
+import threading
 from threading import Thread
 import pika
 import json
@@ -36,6 +37,8 @@ class Worker(Thread):
 
 
     def run(self):
+        t = threading.currentThread()
+        print('dummy worker Thread id : %d  name : %s' % (t.ident, t.getName()))
         self.db_session = db_session_maker()
 
         connection = pika.BlockingConnection(
