@@ -167,8 +167,6 @@ class TaskNode(Node, ABC):
         # State.WORKING
         self.task_state = self._get_tasks_state()
 
-        print("&&&&&&& task_state %s", self.task_state)
-
         if self.task_state == TaskState.Killed:
             # if killed just ignore the task
             return data

@@ -4,7 +4,7 @@
 # @Email   : ian.zhang.88@outlook.com
 
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Text, DateTime
+from sqlalchemy import Table, Column, Integer, String, MetaData, ForeignKey, Text, DateTime, BOOLEAN
 from sqlalchemy.orm import relationship, defer, undefer
 import json
 import logging
@@ -44,9 +44,9 @@ class Flow(Base):
     job_id = Column(String(256), index=True)  # who create the flow
 
     name = Column(String(256),index=True)
-    input_data = Column(String(2 ** 24))
-    work_data = Column(String(2**24))
-    user_data = Column(String(2 ** 24))
+    input_data = Column(Text(2 ** 24))
+    work_data = Column(Text(2**24))
+    user_data = Column(Text(2 ** 24))
     create_date = Column(DateTime(),index=True)
     finish_date = Column(DateTime())
     state = Column(String(256))
@@ -101,11 +101,11 @@ class Node(Base):
     node_num = Column(Integer)
     flow_id = Column(Integer, ForeignKey("flow.id"))
 
-    input_nodes = Column(String(2**16))
-    output_nodes = Column(String(2**16))
+    input_nodes = Column(Text(2**16))
+    output_nodes = Column(Text(2**16))
     state = Column(String(256))
-    work_data = Column(String(2 ** 24))
-    user_data = Column(String(2 ** 24))
+    work_data = Column(Text(2 ** 24))
+    user_data = Column(Text(2 ** 24))
     create_date = Column(DateTime())
     finish_date = Column(DateTime())
 
@@ -125,11 +125,29 @@ class Task(Base):
     task_num = Column(Integer)
     state = Column(String(256))
 
-    input_data = Column(String(2 ** 24))
-    work_data = Column(String(2 ** 24))
-    user_data = Column(String(2 ** 24))
+    input_data = Column(Text(2 ** 24))
+    work_data = Column(Text(2 ** 24))
+    user_data = Column(Text(2 ** 24))
     create_date = Column(DateTime())
     finish_date = Column(DateTime())
+
+class Test(Base):
+    __tablename__ = "forupdate"
+    id = Column(Integer, primary_key=True)
+    value = Column(Integer)
+
+    def __repr__(self):
+        return "id: %s value:%s" % (self.id,self.value)
+
+class Event(Base):
+    __tablename__ = "outbox"
+
+    id = Column(Integer, primary_key=True)
+    type = Column(String(265))
+    create_date = Column(DateTime())
+    data = Column(Text(2 ** 24))
+    is_sent = Column(BOOLEAN, default=False, index=True)
+
 
 class DatabaseFacade:
     def __init__(self):

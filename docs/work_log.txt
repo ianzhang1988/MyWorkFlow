@@ -1,3 +1,8 @@
+2020-11-23:
+之前的mysql版本有些低，弄个maria
+docker run --name myflow -v /opt/zhangyang/mysql/db2:/var/lib/mysql -p 3306:3307 -e MYSQL_ROOT_PASSWORD=zhang -d mariadb
+docker run -it --rm mariadb mysql -h10.19.17.188 -P3307 -uroot -pzhang
+
 2020-11-20:
 数据库异常是sqlalchemy释放的时候，释放其他线程里面的session，造成的。所以需要在线程用完session的时候，关闭线程。
 检查状态的时，不读取work_data列，减少传输的量
@@ -42,7 +47,7 @@ self.event_facade.send_task(tasks)
 docker run --name some-mysql -v /opt/zhangyang/mysql/db1:/var/lib/mysql -e MYSQL_ROOT_PASSWORD=zhang -d mysql
 docker run -it --rm mysql mysql -uroot -p
 
-docker run --name some-mysql -v /opt/zhangyang/mysql/db1:/var/lib/mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=zhang -d mysql:5
+docker run --name some-mysql -v /opt/zhangyang/mysql/db2:/var/lib/mysql -p 3306:3306 -e MYSQL_ROOT_PASSWORD=zhang -d mysql:5
 docker run -it --rm mysql:5 mysql -h10.19.17.188 -P3306 -uroot -pzhang
 
 # perfect workerflow engine，也许可以参考一下

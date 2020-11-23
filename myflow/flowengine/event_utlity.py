@@ -7,21 +7,142 @@ import pika
 from pika.adapters.utils.connection_workflow import AMQPConnectorException
 import json
 import threading, traceback, functools, logging, time
+from sqlalchemy.exc import OperationalError
 
 from myflow.globalvar import dummy_event_queue
 from queue import Empty
 
-# def make_node_event():
-#     event = {
-#         "type":,
-#         "node_num":,
-#         "node_id":,
-#         "type":,
-#         "type":,
-#     }
-#
-#
-#     return event
+from myflow.globalvar import db_session_maker
+from myflow.flowengine.dao import Event
+
+def make_node_event(flow_name, flow_id, node_id):
+    event = {
+        "flow_name": flow_name,
+        "flow_id": flow_id,
+        "node_id": node_id,
+    }
+
+    return json.dumps(event)
+
+def make_task_event(flow_id, node_id, task_id, task_num, flow_name=None):
+    event = {
+        "flow_id": flow_id,
+        "node_id": node_id,
+        "task_id": task_id,
+        "task_num": task_num,
+    }
+
+    if flow_name:
+        event["flow_name"] = flow_name
+
+    return json.dumps(event)
+
+class OutBox:
+    def __init__(self, host, port):
+        self.host = host
+        self.port = port
+
+        self.thread = None
+        self.work_flag = True
+        self.db_session = None
+        self.connection = None
+        self.node_queue_name = 'node_queue'
+        self.task_queue_name = 'task_queue'
+
+    def stop(self):
+        self.work_flag = False
+        self.thread.join()
+
+    def run(self):
+        self.thread = threading.Thread(target=self._work_loop())
+        self.thread.start()
+
+    def _connect(self):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(self.host, self.port))
+        self.node_channel = self.connection.channel()
+        self.node_channel.queue_declare(queue=self.node_queue_name, durable=True)
+        self.node_channel.confirm_delivery()
+        self.task_channel = self.connection.channel()
+        self.task_channel.queue_declare(queue=self.task_queue_name, durable=True)
+        self.task_channel.confirm_delivery()
+
+    def _work_loop(self):
+        while self.work_flag:
+            try:
+                self.db_session = db_session_maker()
+                self._connect()
+                self._work()
+                self.db_session.close()
+
+            except pika.exceptions.ConnectionClosedByBroker:
+                # Uncomment this to make the example not attempt recovery
+                # from server-initiated connection closure, including
+                # when the node is stopped cleanly
+                #
+                # break
+                continue
+                # Do not recover on channel errors
+            except pika.exceptions.AMQPChannelError as err:
+                logging.error("Caught a channel error: {}, stopping...".format(err))
+                break
+                # Recover on all other connection errors
+            except pika.exceptions.AMQPConnectionError:
+                traceback.print_exc()
+                logging.warning("Connection was closed, retrying...")
+                continue
+            except AMQPConnectorException as e:
+                logging.warning("Connector error , retrying...: %s", str(e))
+                continue
+            except Exception as e:
+                logging.error("OutBox error: %s", e)
+                break
+
+
+    def _work(self):
+        while self.work_flag:
+            events = None
+            try:
+                events = self.db_session.query(Event).filter(Event.is_sent == False).limit(100)\
+                    .populate_existing().with_for_update(nowait=True,skip_locked=True).all()
+
+            except OperationalError as e:
+                # other have lock
+                time.sleep(0.1)
+                continue
+
+            if not events:
+                # no event in db
+                time.sleep(0.1)
+                continue
+
+            for e in events:
+                event_db = json.loads(e.data)
+
+                if event_db.type == "node":
+                    event_mq = make_node_event(event_db["flow_name"], event_db["flow_id"], event_db["node_id"])
+                    self.node_channel.basic_publish(
+                        exchange='',
+                        routing_key=self.node_queue_name,
+                        body=event_mq,
+                        properties=pika.BasicProperties(
+                            delivery_mode=2,  # make message persistent
+                        ))
+                elif event_db.type == "task":
+                    event_mq = make_task_event( event_db["flow_id"], event_db["node_id"], event_db["task_id"], event_db["task_num"])
+                    self.task_channel.basic_publish(
+                        exchange='',
+                        routing_key=self.task_queue_name,
+                        body=event_mq,
+                        properties=pika.BasicProperties(
+                            delivery_mode=2,  # make message persistent
+                        ))
+                else:
+                    logging.warning("event type not expected: %s", e.type)
+                    continue
+
+            self.db_session.commit()
+
+
 
 class EventFacade:
     def __init__(self, host, port):
