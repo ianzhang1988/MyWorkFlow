@@ -69,7 +69,7 @@ class Engine:
             data = node._work()
             tasks = node.task_for_send()
             if tasks:
-                self.database_facade.add_task(tasks)
+                self.database_facade.add_task(tasks, flow_name)
                 # self.event_facade.send_task(tasks, flow_name)
         else:
             data = node._work() # just make sure this is short, so we don't have to commit all around
@@ -82,15 +82,17 @@ class Engine:
 
             for n in node.output_nodes:
 
-                event = {
-                    "flow_name": flow_name,
-                    "type": EventType.NODE,
-                    "flow_id": n.flow_id,
-                    "node_id": n.id,
-                }
+                # event = {
+                #     "flow_name": flow_name,
+                #     "type": EventType.NODE,
+                #     "flow_id": n.flow_id,
+                #     "node_id": n.id,
+                # }
 
                 # send envet to next node
-                self.event_facade.send_node_event(event)
+                #self.event_facade.send_node_event(event)
+
+                self.database_facade.add_node_event(n, flow_name)
 
 
             # if isinstance(node, End):
@@ -110,8 +112,9 @@ class Engine:
             self.database_facade.update_node_database(node)
 
         self.database_facade.commit()
-        if tasks:
-            self.event_facade.send_task(tasks, flow_name)
+
+        # if tasks:
+        #     self.event_facade.send_task(tasks, flow_name)
 
     def _process_task(self, event):
         pass

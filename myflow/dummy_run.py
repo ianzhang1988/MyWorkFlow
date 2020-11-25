@@ -9,7 +9,7 @@ import logging
 from myflow.globalvar import db_session_maker
 from myflow.workflow import dummy_flow
 from myflow.flowengine.dao import FlowDao, init_database, DatabaseFacade
-from myflow.flowengine.event_utlity import EventFacade
+from myflow.flowengine.event_utlity import EventFacade, OutBox
 from myflow.flowengine.engine import Engine
 
 from myflow.flowengine.consts import EventType
@@ -52,14 +52,18 @@ event_facade2.connect()
 event_facade2.send_node_event(event)
 event_facade2.connection.process_data_events()
 
+outbox = OutBox('10.19.17.188', 5673)
+outbox.start()
 event_facade = EventFacade('10.19.17.188', 5673)
-event_facade.start_dummy_event()
+# event_facade.start_dummy_event()
 # event_facade.send_node_event(event)
 db_facade = DatabaseFacade()
 engine = Engine(db_facade, event_facade)
 engine.register_flow(flow_config.name, flow_config)
 
 engine.run()
+
+print("after engine run")
 
 for _ in range(1000):
     try:
@@ -68,6 +72,7 @@ for _ in range(1000):
         print("KeyboardInterrupt")
         break
 
+outbox.stop()
 worker.stop()
 engine.stop()
 

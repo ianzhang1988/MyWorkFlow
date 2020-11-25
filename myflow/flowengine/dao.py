@@ -15,7 +15,9 @@ from datetime import datetime
 
 from myflow.flowengine.flow import FlowConfigration
 from myflow.flowengine.node import Task as TaskMem
-from myflow.flowengine.consts import State, TaskState
+from myflow.flowengine.consts import State, TaskState, EventType
+
+from myflow.flowengine.event_utlity import make_node_event, make_task_event
 
 Base = declarative_base()
 
@@ -147,6 +149,9 @@ class Event(Base):
     create_date = Column(DateTime())
     data = Column(Text(2 ** 24))
     is_sent = Column(BOOLEAN, default=False, index=True)
+
+    def __repr__(self):
+        return "id:{id} type:{type} is_sent:{is_sent}".format(id=self.id, type=self.type, is_sent=self.is_sent)
 
 
 class DatabaseFacade:
@@ -312,8 +317,7 @@ class DatabaseFacade:
         state_list = []
         for (state,) in all_state:
             state_list.append(state)
-        state_string = " ".join(state_list)
-        print("%%%%%%  check_task_state %s" % state_string)
+        print("%%%%%% check_task_state", state_list)
 
         for (state,) in all_state:
             if state == State.FAILED:
@@ -328,7 +332,7 @@ class DatabaseFacade:
 
         return task_state
 
-    def add_task(self, tasks):
+    def add_task(self, tasks, flow_name):
         for t in tasks:
             t_db = Task(
                 node_id = t.node_id,
@@ -339,6 +343,10 @@ class DatabaseFacade:
             )
 
             self.session.add(t_db)
+
+            self.add_task_event(t, flow_name)
+
+
 
     def update_failed(self, error, flow_id, node_id=None, task_id=None):
         # if task_id:
@@ -362,6 +370,17 @@ class DatabaseFacade:
         })
 
         # self.session.commit()
+
+    def add_node_event(self, node, flow_name):
+        node_event = make_node_event(flow_name, node.flow_id, node.id)
+        out_box_entry = Event(type=EventType.NODE, data=node_event, create_date=datetime.now())
+        self.session.add(out_box_entry)
+
+    def add_task_event(self, task, flow_name):
+        # add event in out box
+        task_event = make_task_event(task.flow_id, task.node_id, task.id, task.task_num, flow_name)
+        out_box_entry = Event(type=EventType.TASK, data=task_event, create_date=datetime.now())
+        self.session.add(out_box_entry)
 
     def commit(self):
         self.session.commit()

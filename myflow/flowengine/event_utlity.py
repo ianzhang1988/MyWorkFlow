@@ -13,7 +13,8 @@ from myflow.globalvar import dummy_event_queue
 from queue import Empty
 
 from myflow.globalvar import db_session_maker
-from myflow.flowengine.dao import Event
+#from myflow.flowengine.dao import Event
+import myflow.flowengine.dao as dao
 
 def make_node_event(flow_name, flow_id, node_id):
     event = {
@@ -53,8 +54,8 @@ class OutBox:
         self.work_flag = False
         self.thread.join()
 
-    def run(self):
-        self.thread = threading.Thread(target=self._work_loop())
+    def start(self):
+        self.thread = threading.Thread(target=self._work_loop)
         self.thread.start()
 
     def _connect(self):
@@ -80,6 +81,7 @@ class OutBox:
                 # when the node is stopped cleanly
                 #
                 # break
+                logging.warning("Connection was closed by broker, retrying...")
                 continue
                 # Do not recover on channel errors
             except pika.exceptions.AMQPChannelError as err:
@@ -94,6 +96,8 @@ class OutBox:
                 logging.warning("Connector error , retrying...: %s", str(e))
                 continue
             except Exception as e:
+                self.db_session.rollback()
+                print("@@@@@@ ", e)
                 logging.error("OutBox error: %s", e)
                 break
 
@@ -102,9 +106,10 @@ class OutBox:
         while self.work_flag:
             events = None
             try:
-                events = self.db_session.query(Event).filter(Event.is_sent == False).limit(100)\
+                # send_evnet_count = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).count()
+                events = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).limit(100)\
                     .populate_existing().with_for_update(nowait=True,skip_locked=True).all()
-
+                self.db_session.commit() # don't hold the lock any longer than needed
             except OperationalError as e:
                 # other have lock
                 time.sleep(0.1)
@@ -115,32 +120,37 @@ class OutBox:
                 time.sleep(0.1)
                 continue
 
+            #try:
             for e in events:
-                event_db = json.loads(e.data)
+                # event_db = json.loads(e.data)
 
-                if event_db.type == "node":
-                    event_mq = make_node_event(event_db["flow_name"], event_db["flow_id"], event_db["node_id"])
+                if e.type == "node":
+                    #event_mq = make_node_event(event_db["flow_name"], event_db["flow_id"], event_db["node_id"])
                     self.node_channel.basic_publish(
                         exchange='',
                         routing_key=self.node_queue_name,
-                        body=event_mq,
+                        body=e.data,
                         properties=pika.BasicProperties(
                             delivery_mode=2,  # make message persistent
                         ))
-                elif event_db.type == "task":
-                    event_mq = make_task_event( event_db["flow_id"], event_db["node_id"], event_db["task_id"], event_db["task_num"])
+                elif e.type == "task":
+                    #event_mq = make_task_event( event_db["flow_id"], event_db["node_id"], event_db["task_id"], event_db["task_num"])
                     self.task_channel.basic_publish(
                         exchange='',
                         routing_key=self.task_queue_name,
-                        body=event_mq,
+                        body=e.data,
                         properties=pika.BasicProperties(
                             delivery_mode=2,  # make message persistent
                         ))
                 else:
                     logging.warning("event type not expected: %s", e.type)
                     continue
+                e.is_sent = True
 
             self.db_session.commit()
+            # except Exception as e:
+            #     print("@@@@@@ ", e)
+            #     traceback.print_exc()
 
 
 
@@ -272,6 +282,7 @@ class EventFacade:
             try:
 
                 self.connect()
+                print("+++++")
 
                 # MQ Main Loop
                 for method, properties, body in self.node_channel.consume(self.node_queue_name, inactivity_timeout=1):

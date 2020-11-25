@@ -11,9 +11,10 @@ import logging
 
 from myflow.globalvar import db_session_maker
 from myflow.flowengine.consts import State
-from myflow.flowengine.dao import Task
+from myflow.flowengine.dao import Task, Event
 from myflow.globalvar import dummy_event_queue
 import sqlalchemy
+from datetime import datetime
 
 
 class Worker(Thread):
@@ -33,8 +34,10 @@ class Worker(Thread):
             "task_id": task_event["task_id"],
         }
 
-        dummy_event_queue.put(event)
 
+        # dummy_event_queue.put(event)
+        out_box_entry = Event(type="node", data=json.dumps(event), create_date=datetime.now())
+        self.db_session.add(out_box_entry)
 
     def run(self):
         t = threading.currentThread()
@@ -60,13 +63,16 @@ class Worker(Thread):
 
             task_id = task_event["task_id"]
             node_id = task_event["node_id"]
+            # if "task_num" not in task_event:
+            #     channel.basic_ack(method.delivery_tag)
+            #     continue
             task_num = task_event["task_num"]
 
             try:
                 if task_id:
                     task = self.db_session.query(Task).filter(Task.id == task_id).one()
                 else:
-                    print("!!!!!!!!!!",self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num))
+                    # print("!!!!!!!!!!",self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num))
                     task = self.db_session.query(Task).filter(Task.node_id == node_id).filter(Task.task_num == task_num).first()
             except sqlalchemy.orm.exc.NoResultFound as e:
                 print("!!!! data error, continue")

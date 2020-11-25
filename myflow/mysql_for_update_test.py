@@ -7,7 +7,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.orm import scoped_session
 from sqlalchemy.exc import OperationalError
 
-from myflow.flowengine.dao import init_database, Test
+from myflow.flowengine.dao import init_database, Test, Event
 
 init_database()
 
@@ -25,6 +25,15 @@ try:
         print(d)
 
     print(data)
+
+    events = session1.query(Event).filter(Event.is_sent == False).limit(100) \
+        .populate_existing().with_for_update(nowait=True, skip_locked=True).all()
+
+    for d in events:
+        print(d)
+
+    event_count = session1.query(Event).filter(Event.is_sent == True).count()
+    print("event count", event_count)
 except OperationalError as e:
     print(e)
     print(dir(e))
