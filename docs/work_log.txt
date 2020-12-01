@@ -1,3 +1,37 @@
+2020-11-30:
+简单测试一下单线程能力，发送10000个dummy任务
+笔记本 i5 2核, 25%cpu
+消息和flow创建阶段，rabbitmq 55-60 flow 每秒
+运行阶段，rabbitmq 50-70 node 每秒 50-60 task 每秒
+综合 4 flow 每秒
+
+增加到4个线程并行看看效果,发送2000个任务，并且把任务发送移到引擎启动的后面
+用了6分钟45秒
+综合 5 flow 每秒， cpu使用率提升到了40-50
+
+增加engine线程到8， 和发送任务线程4
+反而变慢了，也就是说线程切换的消耗现在更大
+用了8分钟
+
+所有线程改成2个，启动两个进程
+cpu利用率上去了，rabbitmq 管理页面消息的吞吐看起来也上去了
+但是处理2000个flow用了10分钟，为什么呢
+
+测试只跑一个进程，用的时间少 7分20秒
+    有没有可能是因为，outbox锁的问题
+
+发现了下面的异常，有两个事务同时update 82648这个节点。难道是rabbitmq发了两个出去
+(MySQLdb._exceptions.OperationalError) (1213, 'Deadlock found when trying to get lock; try restarting transaction')
+[SQL: UPDATE node SET state=%s WHERE node.id = %s]
+[parameters: ('working', 82648)]
+(Background on this error at: http://sqlalche.me/e/13/e3q8)
+
+从outbox堆积的情况来看，这里是一个系统瓶颈
+
+
+2020-11-25:
+outbox 模式跑起来了
+
 2020-11-23:
 之前的mysql版本有些低，弄个maria
 docker run --name myflow -v /opt/zhangyang/mysql/db2:/var/lib/mysql -p 3306:3307 -e MYSQL_ROOT_PASSWORD=zhang -d mariadb
