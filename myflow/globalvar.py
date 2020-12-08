@@ -14,6 +14,7 @@ from queue import Queue
 db_engine = create_engine('mysql://root:zhang@10.19.17.188:3307/test', echo=False)
 session_factory = sessionmaker(bind=db_engine)
 db_session_maker = scoped_session(session_factory)
+# db_session_maker = session_factory
 
 def deinit():
     global db_session_maker

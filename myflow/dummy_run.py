@@ -6,6 +6,9 @@
 import time
 import logging
 
+import sys
+sys.path.append("..")
+
 from myflow.globalvar import db_session_maker
 from myflow.workflow import dummy_flow
 from myflow.flowengine.dao import FlowDao, init_database, DatabaseFacade
@@ -14,6 +17,8 @@ from myflow.flowengine.engine import Engine
 
 from myflow.flowengine.consts import EventType
 from myflow.dummy_worker import Worker
+
+from myflow.Utility.myprofiler import output_profile
 
 logging.basicConfig(level=logging.INFO,format='%(asctime)s %(filename)s[line:%(lineno)d] %(levelname)s %(message)s',
                 datefmt='%a, %d %b %Y %H:%M:%S')
@@ -71,6 +76,8 @@ for _ in range(1000):
     except KeyboardInterrupt:
         print("KeyboardInterrupt")
         break
+
+output_profile(output_file="one_step.1000.prof", sort_by='cumulative', lines_to_print=30)
 
 outbox.stop()
 worker.stop()

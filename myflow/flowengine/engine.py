@@ -7,11 +7,14 @@ import traceback
 import threading
 from datetime import datetime
 import logging
+import time
 
 from myflow.flowengine.consts import State, EventType, FlowError
 from myflow.flowengine.dao import DatabaseFacade
 from myflow.flowengine.event_utlity import EventFacade
 from myflow.flowengine.node import End
+
+from myflow.Utility.myprofiler import profile, profile2
 
 class Engine:
     def __init__(self, database_facade : DatabaseFacade, event_facade: EventFacade):
@@ -36,8 +39,9 @@ class Engine:
         flow_config = self.flow_config[flow_name]
         node_id = event['node_id']
 
-
+        begin = time.time()
         node = self.database_facade.node_state_from_database(flow_config, node_id)
+        print("----- get state time:", time.time() - begin)
 
         # check node state
         if node.state in (State.SUCCESS, State.FAILED, State.KILLED):
@@ -129,9 +133,13 @@ class Engine:
 
         self.database_facade.commit()
 
+    # @profile(sort_by='cumulative', lines_to_print=10)
+    @profile2("one_step")
     def one_step(self, node_event):
 
         try:
+            begin = time.time()
+
             t = threading.currentThread()
             print('one_step Thread id : %d  name : %s' % (t.ident, t.getName()))
             print("one_step %s"%node_event)
@@ -143,11 +151,17 @@ class Engine:
             # event_type = node_event['type']
             flow_id = node_event['flow_id']
 
+            begin2 = time.time()
+
             if not self.database_facade.check_if_flow_state_valid(flow_id):
                 logging.info("one_step invalid state, flow_id %s", flow_id)
                 return True # just consume outdated msg
 
+            print("+++++ check state time", time.time() - begin2)
+
             self._process_node(node_event)
+
+            print("***** one_step time",time.time()-begin)
 
         except FlowError as e:
             self._error(e, node_event)

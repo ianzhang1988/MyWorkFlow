@@ -16,6 +16,8 @@ from myflow.globalvar import db_session_maker
 #from myflow.flowengine.dao import Event
 import myflow.flowengine.dao as dao
 
+from myflow.Utility.myprofiler import profile2
+
 def make_node_event(flow_name, flow_id, node_id):
     event = {
         "flow_name": flow_name,
@@ -72,7 +74,8 @@ class OutBox:
             try:
                 self.db_session = db_session_maker()
                 self._connect()
-                self._work()
+                while self.work_flag:
+                    self._work()
                 self.db_session.close()
 
             except pika.exceptions.ConnectionClosedByBroker:
@@ -101,24 +104,26 @@ class OutBox:
                 logging.error("OutBox error: %s", e)
                 break
 
-
+    @profile2("outbox")
     def _work(self):
-        while self.work_flag:
+        # while self.work_flag:
             events = None
             try:
                 # send_evnet_count = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).count()
-                events = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).limit(1000)\
+                events = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).limit(100)\
                     .populate_existing().with_for_update(nowait=True,skip_locked=True).all()
                 self.db_session.commit() # don't hold the lock any longer than needed
             except OperationalError as e:
                 # other have lock
-                time.sleep(0.1)
-                continue
+                time.sleep(0.01)
+                return
+                # continue
 
             if not events:
                 # no event in db
-                time.sleep(0.1)
-                continue
+                time.sleep(0.01)
+                return
+                # continue
 
             #try:
             for e in events:
@@ -144,7 +149,8 @@ class OutBox:
                         ))
                 else:
                     logging.warning("event type not expected: %s", e.type)
-                    continue
+                    return
+                    # continue
                 e.is_sent = True
 
             self.db_session.commit()
@@ -327,6 +333,7 @@ class EventFacade:
             finally:
                 if self.work_flag:
                     time.sleep(3)
+                    pass
 
     def stop(self):
         self.work_flag = False

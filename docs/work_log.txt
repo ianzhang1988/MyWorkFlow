@@ -1,3 +1,48 @@
+2020-12-08:
+观察到使用 sys.setswitchinterval(0.001) 似乎要快一点，但是当我同时浏览网页时（有负载时）就和默认没有区别了。
+所以，可能是我的笔记本性能不足，同时有一个问题，计算量在哪里，大部分应该是IO操作。
+
+
+2020-12-07:
+sqlalchemy 用的时间比我想象的要多
+
+68457 function calls (66423 primitive calls) in 0.428 seconds
+
+   Ordered by: cumulative time
+   List reduced from 1004 to 30 due to restriction <30>
+
+   ncalls  tottime  percall  cumtime  percall filename:lineno(function)
+        9    0.001    0.000    0.429    0.048 ..\myflow\flowengine\engine.py:136(one_step)
+        9    0.000    0.000    0.340    0.038 ..\myflow\flowengine\engine.py:30(_process_node)
+       70    0.000    0.000    0.242    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\engine\base.py:946(execute)
+       70    0.000    0.000    0.242    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\sql\elements.py:296(_execute_on_connection)
+       70    0.001    0.000    0.241    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\engine\base.py:1082(_execute_clauseelement)
+       49    0.000    0.000    0.228    0.005 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\query.py:3498(__iter__)
+       49    0.001    0.000    0.209    0.004 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\query.py:3523(_execute_and_instances)
+       70    0.002    0.000    0.195    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\engine\base.py:1189(_execute_context)
+       71    0.001    0.000    0.179    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\MySQLdb\cursors.py:171(execute)
+       70    0.000    0.000    0.178    0.003 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\engine\default.py:592(do_execute)
+       71    0.001    0.000    0.173    0.002 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\MySQLdb\cursors.py:316(_query)
+       71    0.000    0.000    0.162    0.002 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\MySQLdb\connections.py:255(query)
+       71    0.161    0.002    0.161    0.002 {function Connection.query at 0x000001BB024725E0}
+       25    0.001    0.000    0.132    0.005 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\query.py:3403(one_or_none)
+        9    0.001    0.000    0.124    0.014 ..\myflow\flowengine\dao.py:167(node_state_from_database)
+        6    0.000    0.000    0.087    0.014 ..\myflow\flowengine\dao.py:248(node_from_database)
+       16    0.000    0.000    0.069    0.004 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\query.py:3439(one)
+        9    0.000    0.000    0.067    0.007 ..\myflow\flowengine\dao.py:302(check_if_flow_state_valid)
+       12    0.001    0.000    0.061    0.005 ..\myflow\flowengine\dao.py:207(_set_ioput_node)
+        7    0.000    0.000    0.059    0.008 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\query.py:3897(update)
+        7    0.000    0.000    0.059    0.008 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\persistence.py:1693(exec_)
+        6    0.000    0.000    0.058    0.010 ..\myflow\flowengine\dao.py:269(update_node_database)
+       58    0.000    0.000    0.044    0.001 <string>:1(<lambda>)
+       58    0.001    0.000    0.044    0.001 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\sql\elements.py:412(compile)
+        6    0.000    0.000    0.044    0.007 ..\myflow\flowengine\dao.py:385(commit)
+        6    0.000    0.000    0.044    0.007 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\session.py:1008(commit)
+       58    0.000    0.000    0.043    0.001 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\sql\elements.py:478(_compiler)
+     10/7    0.000    0.000    0.043    0.006 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\orm\session.py:501(commit)
+       58    0.001    0.000    0.043    0.001 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\sql\compiler.py:527(__init__)
+       58    0.000    0.000    0.042    0.001 D:\WorkSpace\Development\Anaconda2020\lib\site-packages\sqlalchemy\sql\compiler.py:274(__init__)
+
 2020-11-30:
 简单测试一下单线程能力，发送10000个dummy任务
 笔记本 i5 2核, 25%cpu
