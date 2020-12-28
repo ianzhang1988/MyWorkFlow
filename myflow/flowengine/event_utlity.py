@@ -112,7 +112,7 @@ class OutBox:
                 # send_evnet_count = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).count()
                 events = self.db_session.query(dao.Event).filter(dao.Event.is_sent == False).limit(100)\
                     .populate_existing().with_for_update(nowait=True,skip_locked=True).all()
-                self.db_session.commit() # don't hold the lock any longer than needed
+                # self.db_session.commit() # don't hold the lock any longer than needed
             except OperationalError as e:
                 # other have lock
                 time.sleep(0.01)
